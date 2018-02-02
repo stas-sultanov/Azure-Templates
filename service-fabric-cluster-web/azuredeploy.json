@@ -1,0 +1,560 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourcesNamePrefix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Prefix to names of the resources."
+			}
+		},
+		"resourcesNameSuffix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Postfix to names of the resources."
+			}
+		},
+		"resourcesLocation":
+		{
+			"type": "string",
+			"defaultValue": "westeurope",
+			"metadata":
+			{
+				"description": "Location of the resources."
+			}
+		},
+		"appGatewaySKUName":
+		{
+			"type": "string",
+			"defaultValue": "Standard_Small",
+			"allowedValues":
+			[
+				"Standard_Small",
+				"Standard_Medium",
+				"Standard_Large",
+				"WAF_Medium",
+				"WAF_Large"
+			],
+			"metadata":
+			{
+				"description": "Specifies the tier of application gateway."
+			}
+		},
+		"appGatewaySKUCapacity":
+		{
+			"type": "int",
+			"defaultValue": 1,
+			"minValue": 1,
+			"maxValue": 10,
+			"metadata":
+			{
+				"description": "Specifies the number of virtual machines in application gateway."
+			}
+		},
+		"computeSKUName":
+		{
+			"type": "string",
+			"defaultValue": "Standard_D1_v2",
+			"allowedValues":
+			[
+				"Standard_D1_v2"
+			],
+			"metadata":
+			{
+				"description": "Specifies the tier of virtual machines in a scale set."
+			}
+		},
+		"computeSKUCapacity":
+		{
+			"type": "int",
+			"defaultValue": 1,
+			"minValue": 1,
+			"maxValue": 100,
+			"metadata":
+			{
+				"description": "Specifies the number of virtual machines in the scale set."
+			}
+		},
+		"computeAdminUsername":
+		{
+			"type": "string",
+			"minLength": 1
+		},
+		"computeAdminPassword":
+		{
+			"type": "securestring"
+		},
+		"fabricReliabilityLevel":
+		{
+			"type": "string",
+			"defaultValue": "None",
+			"allowedValues":
+			[
+				"None",
+				"Bronze",
+				"Silver",
+				"Gold",
+				"Platinum"
+			],
+			"metadata":
+			{
+				"description": "Cluster reliability level indicates replica set size of system service."
+			}
+		}
+	},
+	"variables":
+	{
+		"Names":
+		{
+			"VirtualNetwork": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"AppGatewaySubnet": "AppGatewaySubnet",
+			"AppGatewayPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-appgateway')]",
+			"AppGateway": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"FabricSubnet": "FabricSubnet",
+			"FabricScaleSet": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"Fabric": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"ComputeStorage": "[replace(concat(parameters('resourcesNamePrefix'), parameters('resourcesNameSuffix')), '-', '')]"
+		},
+		"VirtualNetwork":
+		{
+			"ResourceName": "[variables('Names').VirtualNetwork]",
+			"ResourceId": "[resourceId('Microsoft.Network/virtualNetworks', variables('Names').VirtualNetwork)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AddressPrefix": "10.0.0.0/24"
+		},
+		"AppGatewaySubnet":
+		{
+			"ResourceName": "[variables('Names').AppGatewaySubnet]",
+			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').AppGatewaySubnet)]",
+			"AddressPrefix": "10.0.0.0/26"
+		},
+		"AppGatewayPublicIP":
+		{
+			"ResourceName": "[variables('Names').AppGatewayPublicIP]",
+			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').AppGatewayPublicIP)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"DomainName": "[variables('Names').AppGatewayPublicIP]"
+		},
+		"AppGateway":
+		{
+			"ResourceName": "[variables('Names').AppGateway]",
+			"ResourceId": "[resourceId('Microsoft.Network/applicationGateways', variables('Names').AppGateway)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"SKUName": "[parameters('appGatewaySKUName')]",
+			"SKUCapacity": "[parameters('appGatewaySKUCapacity')]",
+			"PrimaryBackendAddressPoolName": "appGatewayBackendPool",
+			"PrimaryBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('Names').AppGateway), '/backendAddressPools/', 'appGatewayBackendPool')]"
+		},
+		"FabricSubnet":
+		{
+			"ResourceName": "[variables('Names').FabricSubnet]",
+			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').FabricSubnet)]",
+			"AddressPrefix": "10.0.0.128/26"
+		},
+		"FabricScaleSet":
+		{
+			"ResourceName": "[variables('Names').FabricScaleSet]",
+			"ResourceId": "[resourceId('Microsoft.Compute/virtualMachineScaleSets', variables('Names').FabricScaleSet)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"SKUName": "[parameters('computeSKUName')]",
+			"SKUCapacity": "[parameters('computeSKUCapacity')]",
+			"ComputerNamePrefix": "master",
+			"AdminUsername": "[parameters('computeAdminUsername')]",
+			"AdminPassword": "[parameters('computeAdminPassword')]",
+			"ImageSku": "2016-Datacenter-with-Containers",
+			"ManagedDiskStorageAccountType": "Standard_LRS"
+		},
+		"Fabric":
+		{
+			"ResourceName": "[variables('Names').Fabric]",
+			"ResourceId": "[resourceId('Microsoft.ServiceFabric/clusters', variables('Names').Fabric)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"ReliabilityLevel": "[parameters('fabricReliabilityLevel')]"
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "Virtual network.",
+			"apiVersion": "2017-10-01",
+			"name": "[variables('VirtualNetwork').ResourceName]",
+			"type": "Microsoft.Network/virtualNetworks",
+			"location": "[variables('VirtualNetwork').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Virtual Network"
+			},
+			"properties":
+			{
+				"addressSpace":
+				{
+					"addressPrefixes":
+					[
+						"[variables('VirtualNetwork').AddressPrefix]"
+					]
+				},
+				"subnets":
+				[
+					{
+						"name": "[variables('AppGatewaySubnet').ResourceName]",
+						"properties":
+						{
+							"addressPrefix": "[variables('AppGatewaySubnet').AddressPrefix]"
+						}
+					},
+					{
+						"name": "[variables('FabricSubnet').ResourceName]",
+						"properties":
+						{
+							"addressPrefix": "[variables('FabricSubnet').AddressPrefix]",
+							"serviceEndpoints":
+							[
+								{
+									"service": "Microsoft.Storage"
+								}
+							]
+						}
+					}
+				]
+			}
+		},
+		{
+			"comments": "Public IP address used by the Application Gateway.",
+			"apiVersion": "2017-10-01",
+			"name": "[variables('AppGatewayPublicIP').ResourceName]",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"location": "[variables('AppGatewayPublicIP').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "App Gateway / Public IP"
+			},
+			"properties":
+			{
+				"publicIPAllocationMethod": "Dynamic",
+				"dnsSettings":
+				{
+					"domainNameLabel": "[variables('AppGatewayPublicIP').DomainName]"
+				}
+			}
+		},
+		{
+			"comments": "Tier 7 Load balancer for Service Fabric cluster.",
+			"apiVersion": "2017-10-01",
+			"name": "[variables('AppGateway').ResourceName]",
+			"type": "Microsoft.Network/applicationGateways",
+			"location": "[variables('AppGateway').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "App Gateway"
+			},
+			"properties":
+			{
+				"sku":
+				{
+					"name": "[variables('AppGateway').SKUName]",
+					"capacity": "[variables('AppGateway').SKUCapacity]"
+				},
+				"gatewayIPConfigurations":
+				[
+					{
+						"name": "appGatewayIpConfig",
+						"properties":
+						{
+							"subnet":
+							{
+								"id": "[variables('AppGatewaySubnet').ResourceId]"
+							}
+						}
+					}
+				],
+				"frontendIPConfigurations":
+				[
+					{
+						"name": "appGatewayFrontendIP",
+						"properties":
+						{
+							"PublicIPAddress":
+							{
+								"id": "[variables('AppGatewayPublicIP').ResourceId]"
+							}
+						}
+					}
+				],
+				"frontendPorts":
+				[
+					{
+						"name": "appGatewayFrontendPort",
+						"properties":
+						{
+							"Port": 80
+						}
+					}
+				],
+				"backendAddressPools":
+				[
+					{
+						"name": "[variables('AppGateway').PrimaryBackendAddressPoolName]"
+					}
+				],
+				"backendHttpSettingsCollection":
+				[
+					{
+						"name": "appGatewayBackendHttpSettings",
+						"properties":
+						{
+							"Port": 80,
+							"Protocol": "Http",
+							"CookieBasedAffinity": "Disabled"
+						}
+					}
+				],
+				"httpListeners":
+				[
+					{
+						"name": "appGatewayHttpListener",
+						"properties":
+						{
+							"FrontendIPConfiguration":
+							{
+								"Id": "[concat(variables('AppGateway').ResourceId, '/frontendIPConfigurations/appGatewayFrontendIP')]"
+							},
+							"FrontendPort":
+							{
+								"Id": "[concat(variables('AppGateway').ResourceId, '/frontendPorts/appGatewayFrontendPort')]"
+							},
+							"Protocol": "Http",
+							"SslCertificate": null
+						}
+					}
+				],
+				"requestRoutingRules":
+				[
+					{
+						"Name": "rule1",
+						"properties":
+						{
+							"RuleType": "Basic",
+							"httpListener":
+							{
+								"id": "[concat(variables('AppGateway').ResourceId, '/httpListeners/appGatewayHttpListener')]"
+							},
+							"backendAddressPool":
+							{
+								"id": "[variables('AppGateway').PrimaryBackendAddressPoolId]"
+							},
+							"backendHttpSettings":
+							{
+								"id": "[concat(variables('AppGateway').ResourceId, '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
+							}
+						}
+					}
+				]
+			},
+			"dependsOn":
+			[
+				"[variables('VirtualNetwork').ResourceId]",
+				"[variables('AppGatewayPublicIP').ResourceId]"
+			]
+		},
+		{
+			"comments": "Virtual Machine Scale Set for Service Fabric cluster.",
+			"apiVersion": "2017-03-30",
+			"name": "[variables('FabricScaleSet').ResourceName]",
+			"type": "Microsoft.Compute/virtualMachineScaleSets",
+			"location": "[variables('FabricScaleSet').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Fabric / Scale Set"
+			},
+			"sku":
+			{
+				"name": "[variables('FabricScaleSet').SKUName]",
+				"capacity": "[variables('FabricScaleSet').SKUCapacity]"
+			},
+			"properties":
+			{
+				"upgradePolicy":
+				{
+					"mode": "Manual"
+				},
+				"virtualMachineProfile":
+				{
+					"osProfile":
+					{
+						"computerNamePrefix": "[variables('FabricScaleSet').ComputerNamePrefix]",
+						"adminUsername": "[variables('FabricScaleSet').AdminUsername]",
+						"adminPassword": "[variables('FabricScaleSet').AdminPassword]",
+						"secrets":
+						[
+						]
+					},
+					"storageProfile":
+					{
+						"imageReference":
+						{
+							"publisher": "MicrosoftWindowsServer",
+							"offer": "WindowsServer",
+							"sku": "[variables('FabricScaleSet').ImageSku]",
+							"version": "latest"
+						},
+						"osDisk":
+						{
+							"caching": "ReadWrite",
+							"createOption": "FromImage",
+							"managedDisk":
+							{
+								"storageAccountType": "[variables('FabricScaleSet').ManagedDiskStorageAccountType]"
+							}
+						}
+					},
+					"networkProfile":
+					{
+						"networkInterfaceConfigurations":
+						[
+							{
+								"name": "NIC-0",
+								"properties":
+								{
+									"primary": true,
+									"ipConfigurations":
+									[
+										{
+											"name": "NIC-0-config",
+											"properties":
+											{
+												"subnet":
+												{
+													"id": "[variables('FabricSubnet').ResourceId]"
+												},
+												"ApplicationGatewayBackendAddressPools":
+												[
+													{
+														"id": "[variables('AppGateway').PrimaryBackendAddressPoolId]"
+													}
+												]
+											}
+										}
+									]
+								}
+							}
+						]
+					},
+					"extensionProfile":
+					{
+						"extensions":
+						[
+							{
+								"name": "master_ServiceFabricNode",
+								"properties":
+								{
+									"publisher": "Microsoft.Azure.ServiceFabric",
+									"type": "ServiceFabricNode",
+									"typeHandlerVersion": "1.0",
+									"autoUpgradeMinorVersion": true,
+									"settings":
+									{
+										"clusterEndpoint": "https://westeurope.servicefabric.azure.com/runtime/clusters/59e523b8-aaff-41c7-a090-4ec806a736f3",
+										"nodeTypeRef": "master",
+										"dataPath": "D:\\\\SvcFab",
+										"durabilityLevel": "Bronze",
+										"enableParallelJobs": true,
+										"nicPrefixOverride": "[variables('FabricSubnet').AddressPrefix]",
+										"certificate":
+										{
+											"thumbprint": "A76DD3157D054F118922389C28185D742FF8CAAB",
+											"x509StoreName": "My"
+										}
+									}
+								}
+							}
+						]
+					}
+				}
+			},
+			"dependsOn":
+			[
+				"[variables('AppGateway').ResourceId]"
+			]
+		},
+		{
+			"comments": "Service Fabric cluster.",
+			"apiVersion": "2016-09-01",
+			"name": "[variables('Fabric').ResourceName]",
+			"type": "Microsoft.ServiceFabric/clusters",
+			"location": "[variables('Fabric').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Fabric"
+			},
+			"properties":
+			{
+				"certificate":
+				{
+					"thumbprint": "A76DD3157D054F118922389C28185D742FF8CAAB",
+					"x509StoreName": "My"
+				},
+				"reliabilityLevel": "[variables('Fabric').ReliabilityLevel]",
+				"upgradeMode": "Automatic",
+				"clientCertificateThumbprints":
+				[
+				],
+				"clientCertificateCommonNames":
+				[
+				],
+				"fabricSettings":
+				[
+					{
+						"name": "Security",
+						"parameters":
+						[
+							{
+								"name": "ClusterProtectionLevel",
+								"value": "EncryptAndSign"
+							}
+						]
+					}
+				],
+				"reverseProxyCertificate":
+				{
+					"thumbprint": "A76DD3157D054F118922389C28185D742FF8CAAB",
+					"x509StoreName": "My"
+				},
+				"managementEndpoint": "https://someshit.westeurope.cloudapp.azure.com:19080",
+				"nodeTypes":
+				[
+					{
+						"name": "master",
+						"clientConnectionEndpointPort": 19000,
+						"httpGatewayEndpointPort": 19080,
+						"applicationPorts":
+						{
+							"startPort": 20000,
+							"endPort": 30000
+						},
+						"ephemeralPorts":
+						{
+							"startPort": 49152,
+							"endPort": 65534
+						},
+						"isPrimary": true,
+						"vmInstanceCount": 1,
+						"reverseProxyEndpointPort": 1981
+					}
+				]
+			}
+		}
+	],
+	"outputs":
+	{
+		"VirtualNetwork.ResourceId":
+		{
+			"type": "string",
+			"value": "[variables('VirtualNetwork').ResourceId]"
+		}
+	}
+}
