@@ -112,8 +112,10 @@
 		"Names":
 		{
 			"VirtualNetwork": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"LoadBalancerSubnet": "LoadBalancerSubnet",
+			"LoadBalancerPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t4lb')]",
 			"AppGatewaySubnet": "AppGatewaySubnet",
-			"AppGatewayPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-appgateway')]",
+			"AppGatewayPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t7lb')]",
 			"AppGateway": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
 			"FabricSubnet": "FabricSubnet",
 			"FabricScaleSet": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
@@ -127,11 +129,24 @@
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"AddressPrefix": "10.0.0.0/24"
 		},
+		"LoadBalancerSubnet":
+		{
+			"ResourceName": "[variables('Names').LoadBalancerSubnet]",
+			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').LoadBalancerSubnet)]",
+			"AddressPrefix": "10.0.0.128/27"
+		},
+		"LoadBalancerPublicIP":
+		{
+			"ResourceName": "[variables('Names').LoadBalancerPublicIP]",
+			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').LoadBalancerPublicIP)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"DomainName": "[variables('Names').LoadBalancerPublicIP]"
+		},
 		"AppGatewaySubnet":
 		{
 			"ResourceName": "[variables('Names').AppGatewaySubnet]",
 			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').AppGatewaySubnet)]",
-			"AddressPrefix": "10.0.0.0/26"
+			"AddressPrefix": "10.0.0.160/27"
 		},
 		"AppGatewayPublicIP":
 		{
@@ -154,7 +169,7 @@
 		{
 			"ResourceName": "[variables('Names').FabricSubnet]",
 			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').FabricSubnet)]",
-			"AddressPrefix": "10.0.0.128/26"
+			"AddressPrefix": "10.0.0.0/26"
 		},
 		"FabricScaleSet":
 		{
@@ -201,6 +216,13 @@
 				"subnets":
 				[
 					{
+						"name": "[variables('LoadBalancerSubnet').ResourceName]",
+						"properties":
+						{
+							"addressPrefix": "[variables('LoadBalancerSubnet').AddressPrefix]"
+						}
+					},
+					{
 						"name": "[variables('AppGatewaySubnet').ResourceName]",
 						"properties":
 						{
@@ -224,7 +246,26 @@
 			}
 		},
 		{
-			"comments": "Public IP address used by the Application Gateway.",
+			"comments": "Public IP address of the Tier 4 Load Balancer.",
+			"apiVersion": "2017-10-01",
+			"name": "[variables('LoadBalancerPublicIP').ResourceName]",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"location": "[variables('LoadBalancerPublicIP').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Load Balancer / Public IP"
+			},
+			"properties":
+			{
+				"publicIPAllocationMethod": "Dynamic",
+				"dnsSettings":
+				{
+					"domainNameLabel": "[variables('AppGatewayPublicIP').DomainName]"
+				}
+			}
+		},
+		{
+			"comments": "Public IP address of the Tier 7 Load Balancer.",
 			"apiVersion": "2017-10-01",
 			"name": "[variables('AppGatewayPublicIP').ResourceName]",
 			"type": "Microsoft.Network/publicIPAddresses",
@@ -243,7 +284,7 @@
 			}
 		},
 		{
-			"comments": "Tier 7 Load balancer for Service Fabric cluster.",
+			"comments": "Tier 7 Load balancer for the Service Fabric cluster.",
 			"apiVersion": "2017-10-01",
 			"name": "[variables('AppGateway').ResourceName]",
 			"type": "Microsoft.Network/applicationGateways",
