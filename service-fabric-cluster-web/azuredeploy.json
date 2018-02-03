@@ -28,6 +28,14 @@
 				"description": "Location of the resources."
 			}
 		},
+		"keyVaultId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Key Vault resource which stores the secrets."
+			}
+		},
 		"appGatewaySKUName":
 		{
 			"type": "string",
@@ -105,6 +113,14 @@
 			{
 				"description": "Cluster reliability level indicates replica set size of system service."
 			}
+		},
+		"fabricManagementCertificate":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Thumbprint of the managemnet certificate."
+			}
 		}
 	},
 	"variables":
@@ -114,6 +130,7 @@
 			"VirtualNetwork": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
 			"LoadBalancerSubnet": "LoadBalancerSubnet",
 			"LoadBalancerPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t4lb')]",
+			"LoadBalancer": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
 			"AppGatewaySubnet": "AppGatewaySubnet",
 			"AppGatewayPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t7lb')]",
 			"AppGateway": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
@@ -121,6 +138,10 @@
 			"FabricScaleSet": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
 			"Fabric": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
 			"ComputeStorage": "[replace(concat(parameters('resourcesNamePrefix'), parameters('resourcesNameSuffix')), '-', '')]"
+		},
+		"KeyVault":
+		{
+			"ResourceId": "[parameters('keyVaultId')]"
 		},
 		"VirtualNetwork":
 		{
@@ -141,6 +162,18 @@
 			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').LoadBalancerPublicIP)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"DomainName": "[variables('Names').LoadBalancerPublicIP]"
+		},
+		"LoadBalancer":
+		{
+			"ResourceName": "[variables('Names').LoadBalancer]",
+			"ResourceId": "[resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"FabricFrontendIPConfigurationName": "Fabric",
+			"FabricFrontendIPConfigurationId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/frontendIPConfigurations/Fabric')]",
+			"FabricBackendAddressPoolName": "Fabric",
+			"FabricBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/backendAddressPools/Fabric')]",
+			"FabricInboundNatPoolName" : "Fabric",
+			"FabricInboundNatPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/inboundNatPools/Fabric')]"
 		},
 		"AppGatewaySubnet":
 		{
@@ -163,7 +196,7 @@
 			"SKUName": "[parameters('appGatewaySKUName')]",
 			"SKUCapacity": "[parameters('appGatewaySKUCapacity')]",
 			"PrimaryBackendAddressPoolName": "appGatewayBackendPool",
-			"PrimaryBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('Names').AppGateway), '/backendAddressPools/', 'appGatewayBackendPool')]"
+			"FabricBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('Names').AppGateway), '/backendAddressPools/', 'appGatewayBackendPool')]"
 		},
 		"FabricSubnet":
 		{
@@ -189,7 +222,9 @@
 			"ResourceName": "[variables('Names').Fabric]",
 			"ResourceId": "[resourceId('Microsoft.ServiceFabric/clusters', variables('Names').Fabric)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
-			"ReliabilityLevel": "[parameters('fabricReliabilityLevel')]"
+			"ReliabilityLevel": "[parameters('fabricReliabilityLevel')]",
+			"CertificateStore": "My",
+			"ManagementCertificate": "[parameters('fabricManagementCertificate')]"
 		}
 	},
 	"resources":
@@ -260,9 +295,133 @@
 				"publicIPAllocationMethod": "Dynamic",
 				"dnsSettings":
 				{
-					"domainNameLabel": "[variables('AppGatewayPublicIP').DomainName]"
+					"domainNameLabel": "[variables('LoadBalancerPublicIP').DomainName]"
 				}
 			}
+		},
+		{
+			"comments": "Tier 4 Load Balancer for Service Fabric Cluster.",
+			"apiVersion": "2017-10-01",
+			"name": "[variables('LoadBalancer').ResourceName]",
+			"type": "Microsoft.Network/loadBalancers",
+			"location": "[variables('LoadBalancer').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Load Balancer"
+			},
+			"properties":
+			{
+				"frontendIPConfigurations":
+				[
+					{
+						"name": "[variables('LoadBalancer').FabricFrontendIPConfigurationName]",
+						"properties":
+						{
+							"publicIPAddress":
+							{
+								"id": "[variables('LoadBalancerPublicIP').ResourceId]"
+							}
+						}
+					}
+				],
+				"backendAddressPools":
+				[
+					{
+						"name": "[variables('LoadBalancer').FabricBackendAddressPoolName]"
+					}
+				],
+				"loadBalancingRules":
+				[
+					{
+						"name": "FabricManagementTcp",
+						"properties":
+						{
+							"frontendIPConfiguration":
+							{
+								"id": "[variables('LoadBalancer').FabricFrontendIPConfigurationId]"
+							},
+							"backendAddressPool":
+							{
+								"id": "[variables('LoadBalancer').FabricBackendAddressPoolId]"
+							},
+							"probe":
+							{
+								"id": "[concat(variables('LoadBalancer').ResourceId, '/probes/FabricManagementTcp')]"
+							},
+							"protocol": "Tcp",
+							"frontendPort": 19000,
+							"backendPort": 19000
+						}
+					},
+					{
+						"name": "FabricManagementHttp",
+						"properties":
+						{
+							"frontendIPConfiguration":
+							{
+								"id": "[variables('LoadBalancer').FabricFrontendIPConfigurationId]"
+							},
+							"backendAddressPool":
+							{
+								"id": "[variables('LoadBalancer').FabricBackendAddressPoolId]"
+							},
+							"probe":
+							{
+								"id": "[concat(variables('LoadBalancer').ResourceId, '/probes/FabricManagementHttp')]"
+							},
+							"protocol": "Tcp",
+							"frontendPort": 19080,
+							"backendPort": 19080
+						}
+					}
+				],
+				"probes":
+				[
+					{
+						"name": "FabricManagementTcp",
+						"properties":
+						{
+							"protocol": "Tcp",
+							"port": 19000
+						}
+					},
+					{
+						"name": "FabricManagementHttp",
+						"properties":
+						{
+							"protocol": "Tcp",
+							"port": 19080
+						}
+					}
+				],
+				"inboundNatRules":
+				[
+				],
+				"outboundNatRules":
+				[
+				],
+				"inboundNatPools":
+				[
+					{
+						"name": "[variables('LoadBalancer').FabricInboundNatPoolName]",
+						"properties":
+						{
+							"frontendIPConfiguration":
+							{
+								"id": "[variables('LoadBalancer').FabricFrontendIPConfigurationId]"
+							},
+							"protocol": "Tcp",
+							"frontendPortRangeStart": 3389,
+							"frontendPortRangeEnd": 4500,
+							"backendPort": 3389
+						}
+					}
+				]
+			},
+			"dependsOn":
+			[
+				"[variables('LoadBalancerPublicIP').ResourceId]"
+			]
 		},
 		{
 			"comments": "Public IP address of the Tier 7 Load Balancer.",
@@ -386,7 +545,7 @@
 							},
 							"backendAddressPool":
 							{
-								"id": "[variables('AppGateway').PrimaryBackendAddressPoolId]"
+								"id": "[variables('AppGateway').FabricBackendAddressPoolId]"
 							},
 							"backendHttpSettings":
 							{
@@ -421,7 +580,7 @@
 			{
 				"upgradePolicy":
 				{
-					"mode": "Manual"
+					"mode": "Automatic"
 				},
 				"virtualMachineProfile":
 				{
@@ -432,6 +591,19 @@
 						"adminPassword": "[variables('FabricScaleSet').AdminPassword]",
 						"secrets":
 						[
+							{
+								"sourceVault":
+								{
+									"id": "[variables('KeyVault').ResourceId]"
+								},
+								"vaultCertificates":
+								[
+									{
+										"certificateUrl": "https://sevax-dev.vault.azure.net/secrets/customer-dev-t4lb/43dab33b818d4a09b00cc3f784e6a2f6",
+										"certificateStore": "[variables('Fabric').CertificateStore]"
+									}
+								]
+							}
 						]
 					},
 					"storageProfile":
@@ -472,10 +644,22 @@
 												{
 													"id": "[variables('FabricSubnet').ResourceId]"
 												},
-												"ApplicationGatewayBackendAddressPools":
+												"applicationGatewayBackendAddressPools":
 												[
 													{
-														"id": "[variables('AppGateway').PrimaryBackendAddressPoolId]"
+														"id": "[variables('AppGateway').FabricBackendAddressPoolId]"
+													}
+												],
+												"loadBalancerBackendAddressPools":
+												[
+													{
+														"id": "[variables('LoadBalancer').FabricBackendAddressPoolId]"
+													}
+												],
+												"loadBalancerInboundNatPools":
+												[
+													{
+														"id": "[variables('LoadBalancer').FabricInboundNatPoolId]"
 													}
 												]
 											}
@@ -499,7 +683,6 @@
 									"autoUpgradeMinorVersion": true,
 									"settings":
 									{
-										"clusterEndpoint": "https://westeurope.servicefabric.azure.com/runtime/clusters/59e523b8-aaff-41c7-a090-4ec806a736f3",
 										"nodeTypeRef": "master",
 										"dataPath": "D:\\\\SvcFab",
 										"durabilityLevel": "Bronze",
@@ -507,8 +690,8 @@
 										"nicPrefixOverride": "[variables('FabricSubnet').AddressPrefix]",
 										"certificate":
 										{
-											"thumbprint": "A76DD3157D054F118922389C28185D742FF8CAAB",
-											"x509StoreName": "My"
+											"thumbprint": "[variables('Fabric').ManagementCertificate]",
+											"x509StoreName": "[variables('Fabric').CertificateStore]"
 										}
 									}
 								}
@@ -536,8 +719,8 @@
 			{
 				"certificate":
 				{
-					"thumbprint": "A76DD3157D054F118922389C28185D742FF8CAAB",
-					"x509StoreName": "My"
+					"thumbprint": "[variables('Fabric').ManagementCertificate]",
+					"x509StoreName": "[variables('Fabric').CertificateStore]"
 				},
 				"reliabilityLevel": "[variables('Fabric').ReliabilityLevel]",
 				"upgradeMode": "Automatic",
@@ -562,8 +745,8 @@
 				],
 				"reverseProxyCertificate":
 				{
-					"thumbprint": "A76DD3157D054F118922389C28185D742FF8CAAB",
-					"x509StoreName": "My"
+					"thumbprint": "[variables('Fabric').ManagementCertificate]",
+					"x509StoreName": "[variables('Fabric').CertificateStore]"
 				},
 				"managementEndpoint": "https://someshit.westeurope.cloudapp.azure.com:19080",
 				"nodeTypes":
@@ -584,7 +767,7 @@
 						},
 						"isPrimary": true,
 						"vmInstanceCount": 1,
-						"reverseProxyEndpointPort": 1981
+						"reverseProxyEndpointPort": 19081
 					}
 				]
 			}

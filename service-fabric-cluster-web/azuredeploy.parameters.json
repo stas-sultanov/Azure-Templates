@@ -11,6 +11,10 @@
 		{
 			"value": "dev"
 		},
+		"keyVaultId":
+		{
+			"value": "/subscriptions/66ef014e-adb6-4868-9182-52fe0deeeb00/resourceGroups/secrets/providers/Microsoft.KeyVault/vaults/sevax-dev"
+		},
 		"computeAdminUserName":
 		{
 			"value": "wishmaster"
@@ -18,6 +22,10 @@
 		"computeAdminPassword":
 		{
 			"value": "Ho11y-sh!t1920"
+		},
+		"fabricManagementCertificate":
+		{
+			"value": "E4211E3CC5D63C6678611C029E47A8598B4BC30B"
 		}
 	}
 }
