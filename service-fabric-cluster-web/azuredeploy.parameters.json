@@ -25,7 +25,11 @@
 		},
 		"fabricManagementCertificate":
 		{
-			"value": "E4211E3CC5D63C6678611C029E47A8598B4BC30B"
+			"value": "A3906CC99ADA97AD87EAC4BADD09339860B64FC2"
+		},
+		"fabricCertificateUrl":
+		{
+			"value": "https://sevax-dev.vault.azure.net/secrets/customer-dev-t4lb/3951e320d8b2419a8c5975438ecf0256"
 		}
 	}
 }

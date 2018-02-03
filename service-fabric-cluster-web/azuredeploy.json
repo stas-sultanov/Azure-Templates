@@ -121,6 +121,14 @@
 			{
 				"description": "Thumbprint of the managemnet certificate."
 			}
+		},
+		"fabricCertificateUrl":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Thumbprint of the managemnet certificate."
+			}
 		}
 	},
 	"variables":
@@ -224,7 +232,10 @@
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"ReliabilityLevel": "[parameters('fabricReliabilityLevel')]",
 			"CertificateStore": "My",
-			"ManagementCertificate": "[parameters('fabricManagementCertificate')]"
+			"ManagementCertificate": "[parameters('fabricManagementCertificate')]",
+			"TcpManagementPort": 19000,
+			"HttpManagementPort": 19080,
+			"ReverseProxyPort": 19081
 		}
 	},
 	"resources":
@@ -599,7 +610,7 @@
 								"vaultCertificates":
 								[
 									{
-										"certificateUrl": "https://sevax-dev.vault.azure.net/secrets/customer-dev-t4lb/43dab33b818d4a09b00cc3f784e6a2f6",
+										"certificateUrl": "[parameters('fabricCertificateUrl')]",
 										"certificateStore": "[variables('Fabric').CertificateStore]"
 									}
 								]
@@ -683,6 +694,7 @@
 									"autoUpgradeMinorVersion": true,
 									"settings":
 									{
+										"clusterEndpoint": "[reference(variables('Fabric').ResourceId).clusterEndpoint]",
 										"nodeTypeRef": "master",
 										"dataPath": "D:\\\\SvcFab",
 										"durabilityLevel": "Bronze",
@@ -748,13 +760,13 @@
 					"thumbprint": "[variables('Fabric').ManagementCertificate]",
 					"x509StoreName": "[variables('Fabric').CertificateStore]"
 				},
-				"managementEndpoint": "https://someshit.westeurope.cloudapp.azure.com:19080",
+				"managementEndpoint": "[concat('https://', reference(variables('LoadBalancerPublicIP').ResourceId).dnsSettings.fqdn, ':', variables('Fabric').HttpManagementPort)]",
 				"nodeTypes":
 				[
 					{
 						"name": "master",
-						"clientConnectionEndpointPort": 19000,
-						"httpGatewayEndpointPort": 19080,
+						"clientConnectionEndpointPort": "[variables('Fabric').TcpManagementPort]",
+						"httpGatewayEndpointPort": "[variables('Fabric').HttpManagementPort]",
 						"applicationPorts":
 						{
 							"startPort": 20000,
@@ -767,7 +779,7 @@
 						},
 						"isPrimary": true,
 						"vmInstanceCount": 1,
-						"reverseProxyEndpointPort": 19081
+						"reverseProxyEndpointPort": "[variables('Fabric').ReverseProxyPort]"
 					}
 				]
 			}
