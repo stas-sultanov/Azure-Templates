@@ -135,13 +135,13 @@
 	{
 		"Names":
 		{
-			"VirtualNetwork": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
-			"LoadBalancerSubnet": "LoadBalancerSubnet",
-			"LoadBalancerPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t4lb')]",
-			"LoadBalancer": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
-			"AppGatewaySubnet": "AppGatewaySubnet",
-			"AppGatewayPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t7lb')]",
-			"AppGateway": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"Network": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"Tier4BalancerSubnet": "Tier4BalancerSubnet",
+			"Tier4BalancerPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t4lb')]",
+			"Tier4Balancer": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"Tier7BalancerSubnet": "Tier7BalancerSubnet",
+			"Tier7BalancerPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t7lb')]",
+			"Tier7Balancer": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
 			"FabricSubnet": "FabricSubnet",
 			"FabricScaleSet": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
 			"Fabric": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
@@ -151,65 +151,68 @@
 		{
 			"ResourceId": "[parameters('keyVaultId')]"
 		},
-		"VirtualNetwork":
+		"Network":
 		{
-			"ResourceName": "[variables('Names').VirtualNetwork]",
-			"ResourceId": "[resourceId('Microsoft.Network/virtualNetworks', variables('Names').VirtualNetwork)]",
+			"ResourceName": "[variables('Names').Network]",
+			"ResourceId": "[resourceId('Microsoft.Network/virtualNetworks', variables('Names').Network)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"AddressPrefix": "10.0.0.0/24"
 		},
-		"LoadBalancerSubnet":
+		"Tier4BalancerSubnet":
 		{
-			"ResourceName": "[variables('Names').LoadBalancerSubnet]",
-			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').LoadBalancerSubnet)]",
+			"ResourceName": "[concat(variables('Network').ResourceName, '/', variables('Names').Tier4BalancerSubnet)]",
+			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', variables('Names').Tier4BalancerSubnet)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"AddressPrefix": "10.0.0.128/27"
 		},
-		"LoadBalancerPublicIP":
+		"Tier4BalancerPublicIP":
 		{
-			"ResourceName": "[variables('Names').LoadBalancerPublicIP]",
-			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').LoadBalancerPublicIP)]",
+			"ResourceName": "[variables('Names').Tier4BalancerPublicIP]",
+			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').Tier4BalancerPublicIP)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
-			"DomainName": "[variables('Names').LoadBalancerPublicIP]"
+			"DomainName": "[variables('Names').Tier4BalancerPublicIP]"
 		},
-		"LoadBalancer":
+		"Tier4Balancer":
 		{
-			"ResourceName": "[variables('Names').LoadBalancer]",
-			"ResourceId": "[resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer)]",
+			"ResourceName": "[variables('Names').Tier4Balancer]",
+			"ResourceId": "[resourceId('Microsoft.Network/loadBalancers', variables('Names').Tier4Balancer)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"FabricFrontendIPConfigurationName": "Fabric",
-			"FabricFrontendIPConfigurationId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/frontendIPConfigurations/Fabric')]",
+			"FabricFrontendIPConfigurationId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').Tier4Balancer), '/frontendIPConfigurations/Fabric')]",
 			"FabricBackendAddressPoolName": "Fabric",
-			"FabricBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/backendAddressPools/Fabric')]",
-			"FabricInboundNatPoolName" : "Fabric",
-			"FabricInboundNatPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/inboundNatPools/Fabric')]"
+			"FabricBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').Tier4Balancer), '/backendAddressPools/Fabric')]",
+			"FabricInboundNatPoolName": "Fabric",
+			"FabricInboundNatPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').Tier4Balancer), '/inboundNatPools/Fabric')]"
 		},
-		"AppGatewaySubnet":
+		"Tier7BalancerSubnet":
 		{
-			"ResourceName": "[variables('Names').AppGatewaySubnet]",
-			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').AppGatewaySubnet)]",
+			"ResourceName": "[concat(variables('Network').ResourceName, '/', variables('Names').Tier7BalancerSubnet)]",
+			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', variables('Names').Tier7BalancerSubnet)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"AddressPrefix": "10.0.0.160/27"
 		},
-		"AppGatewayPublicIP":
+		"Tier7BalancerPublicIP":
 		{
-			"ResourceName": "[variables('Names').AppGatewayPublicIP]",
-			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').AppGatewayPublicIP)]",
+			"ResourceName": "[variables('Names').Tier7BalancerPublicIP]",
+			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').Tier7BalancerPublicIP)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
-			"DomainName": "[variables('Names').AppGatewayPublicIP]"
+			"DomainName": "[variables('Names').Tier7BalancerPublicIP]"
 		},
-		"AppGateway":
+		"Tier7Balancer":
 		{
-			"ResourceName": "[variables('Names').AppGateway]",
-			"ResourceId": "[resourceId('Microsoft.Network/applicationGateways', variables('Names').AppGateway)]",
+			"ResourceName": "[variables('Names').Tier7Balancer]",
+			"ResourceId": "[resourceId('Microsoft.Network/applicationGateways', variables('Names').Tier7Balancer)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"SKUName": "[parameters('appGatewaySKUName')]",
 			"SKUCapacity": "[parameters('appGatewaySKUCapacity')]",
 			"PrimaryBackendAddressPoolName": "appGatewayBackendPool",
-			"FabricBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('Names').AppGateway), '/backendAddressPools/', 'appGatewayBackendPool')]"
+			"FabricBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('Names').Tier7Balancer), '/backendAddressPools/', 'appGatewayBackendPool')]"
 		},
 		"FabricSubnet":
 		{
-			"ResourceName": "[variables('Names').FabricSubnet]",
-			"ResourceId": "[concat(variables('VirtualNetwork').ResourceId, '/subnets/', variables('Names').FabricSubnet)]",
+			"ResourceName": "[concat(variables('Network').ResourceName, '/', variables('Names').FabricSubnet)]",
+			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', variables('Names').FabricSubnet)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"AddressPrefix": "10.0.0.0/26"
 		},
 		"FabricScaleSet":
@@ -242,13 +245,13 @@
 	[
 		{
 			"comments": "Virtual network.",
-			"apiVersion": "2017-10-01",
-			"name": "[variables('VirtualNetwork').ResourceName]",
+			"name": "[variables('Network').ResourceName]",
 			"type": "Microsoft.Network/virtualNetworks",
-			"location": "[variables('VirtualNetwork').ResourceLocation]",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('Network').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Virtual Network"
+				"displayName": "Network"
 			},
 			"properties":
 			{
@@ -256,81 +259,71 @@
 				{
 					"addressPrefixes":
 					[
-						"[variables('VirtualNetwork').AddressPrefix]"
+						"[variables('Network').AddressPrefix]"
 					]
-				},
-				"subnets":
-				[
-					{
-						"name": "[variables('LoadBalancerSubnet').ResourceName]",
-						"properties":
-						{
-							"addressPrefix": "[variables('LoadBalancerSubnet').AddressPrefix]"
-						}
-					},
-					{
-						"name": "[variables('AppGatewaySubnet').ResourceName]",
-						"properties":
-						{
-							"addressPrefix": "[variables('AppGatewaySubnet').AddressPrefix]"
-						}
-					},
-					{
-						"name": "[variables('FabricSubnet').ResourceName]",
-						"properties":
-						{
-							"addressPrefix": "[variables('FabricSubnet').AddressPrefix]",
-							"serviceEndpoints":
-							[
-								{
-									"service": "Microsoft.Storage"
-								}
-							]
-						}
-					}
-				]
+				}
 			}
 		},
 		{
-			"comments": "Public IP address of the Tier 4 Load Balancer.",
+			"comments": "Subnet for the Tier 4 Load Balancer.",
+			"name": "[variables('Tier4BalancerSubnet').ResourceName]",
+			"type": "Microsoft.Network/virtualNetworks/subnets",
 			"apiVersion": "2017-10-01",
-			"name": "[variables('LoadBalancerPublicIP').ResourceName]",
+			"location": "[variables('Tier4BalancerSubnet').ResourceLocation]",
+			"properties":
+			{
+				"addressPrefix": "[variables('Tier4BalancerSubnet').AddressPrefix]"
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]"
+			]
+		},
+		{
+			"comments": "Public IP address for the Tier 4 Load Balancer.",
+			"name": "[variables('Tier4BalancerPublicIP').ResourceName]",
 			"type": "Microsoft.Network/publicIPAddresses",
-			"location": "[variables('LoadBalancerPublicIP').ResourceLocation]",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('Tier4BalancerPublicIP').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Load Balancer / Public IP"
+				"displayName": "Tier4BalancerPublicIP"
 			},
 			"properties":
 			{
 				"publicIPAllocationMethod": "Dynamic",
 				"dnsSettings":
 				{
-					"domainNameLabel": "[variables('LoadBalancerPublicIP').DomainName]"
+					"domainNameLabel": "[variables('Tier4BalancerPublicIP').DomainName]"
 				}
 			}
 		},
 		{
-			"comments": "Tier 4 Load Balancer for Service Fabric Cluster.",
-			"apiVersion": "2017-10-01",
-			"name": "[variables('LoadBalancer').ResourceName]",
+			"comments": "Tier 4 Load Balancer of the Virtual Machine Scale Set.",
+			"name": "[variables('Tier4Balancer').ResourceName]",
 			"type": "Microsoft.Network/loadBalancers",
-			"location": "[variables('LoadBalancer').ResourceLocation]",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('Tier4Balancer').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Load Balancer"
+				"displayName": "Tier4Balancer"
 			},
 			"properties":
 			{
+
 				"frontendIPConfigurations":
 				[
 					{
-						"name": "[variables('LoadBalancer').FabricFrontendIPConfigurationName]",
+						"name": "[variables('Tier4Balancer').FabricFrontendIPConfigurationName]",
 						"properties":
 						{
+							"subnet":
+							{
+								"id": "[variables('Tier4BalancerSubnet').ResourceId]"
+							},
 							"publicIPAddress":
 							{
-								"id": "[variables('LoadBalancerPublicIP').ResourceId]"
+								"id": "[variables('Tier4BalancerPublicIP').ResourceId]"
 							}
 						}
 					}
@@ -338,7 +331,7 @@
 				"backendAddressPools":
 				[
 					{
-						"name": "[variables('LoadBalancer').FabricBackendAddressPoolName]"
+						"name": "[variables('Tier4Balancer').FabricBackendAddressPoolName]"
 					}
 				],
 				"loadBalancingRules":
@@ -349,19 +342,19 @@
 						{
 							"frontendIPConfiguration":
 							{
-								"id": "[variables('LoadBalancer').FabricFrontendIPConfigurationId]"
+								"id": "[variables('Tier4Balancer').FabricFrontendIPConfigurationId]"
 							},
 							"backendAddressPool":
 							{
-								"id": "[variables('LoadBalancer').FabricBackendAddressPoolId]"
+								"id": "[variables('Tier4Balancer').FabricBackendAddressPoolId]"
 							},
 							"probe":
 							{
-								"id": "[concat(variables('LoadBalancer').ResourceId, '/probes/FabricManagementTcp')]"
+								"id": "[concat(variables('Tier4Balancer').ResourceId, '/probes/FabricManagementTcp')]"
 							},
 							"protocol": "Tcp",
-							"frontendPort": 19000,
-							"backendPort": 19000
+							"frontendPort": "[variables('Fabric').TcpManagementPort]",
+							"backendPort": "[variables('Fabric').TcpManagementPort]"
 						}
 					},
 					{
@@ -370,19 +363,19 @@
 						{
 							"frontendIPConfiguration":
 							{
-								"id": "[variables('LoadBalancer').FabricFrontendIPConfigurationId]"
+								"id": "[variables('Tier4Balancer').FabricFrontendIPConfigurationId]"
 							},
 							"backendAddressPool":
 							{
-								"id": "[variables('LoadBalancer').FabricBackendAddressPoolId]"
+								"id": "[variables('Tier4Balancer').FabricBackendAddressPoolId]"
 							},
 							"probe":
 							{
-								"id": "[concat(variables('LoadBalancer').ResourceId, '/probes/FabricManagementHttp')]"
+								"id": "[concat(variables('Tier4Balancer').ResourceId, '/probes/FabricManagementHttp')]"
 							},
 							"protocol": "Tcp",
-							"frontendPort": 19080,
-							"backendPort": 19080
+							"frontendPort": "[variables('Fabric').HttpManagementPort]",
+							"backendPort": "[variables('Fabric').HttpManagementPort]"
 						}
 					}
 				],
@@ -393,7 +386,7 @@
 						"properties":
 						{
 							"protocol": "Tcp",
-							"port": 19000
+							"port": "[variables('Fabric').TcpManagementPort]"
 						}
 					},
 					{
@@ -401,7 +394,7 @@
 						"properties":
 						{
 							"protocol": "Tcp",
-							"port": 19080
+							"port": "[variables('Fabric').HttpManagementPort]"
 						}
 					}
 				],
@@ -414,12 +407,12 @@
 				"inboundNatPools":
 				[
 					{
-						"name": "[variables('LoadBalancer').FabricInboundNatPoolName]",
+						"name": "[variables('Tier4Balancer').FabricInboundNatPoolName]",
 						"properties":
 						{
 							"frontendIPConfiguration":
 							{
-								"id": "[variables('LoadBalancer').FabricFrontendIPConfigurationId]"
+								"id": "[variables('Tier4Balancer').FabricFrontendIPConfigurationId]"
 							},
 							"protocol": "Tcp",
 							"frontendPortRangeStart": 3389,
@@ -431,44 +424,60 @@
 			},
 			"dependsOn":
 			[
-				"[variables('LoadBalancerPublicIP').ResourceId]"
+				"[variables('Tier4BalancerSubnet').ResourceId]",
+				"[variables('Tier4BalancerPublicIP').ResourceId]"
 			]
 		},
 		{
-			"comments": "Public IP address of the Tier 7 Load Balancer.",
+			"comments": "Subnet for the Tier 7 Load Balancer.",
+			"name": "[variables('Tier7BalancerSubnet').ResourceName]",
+			"type": "Microsoft.Network/virtualNetworks/subnets",
 			"apiVersion": "2017-10-01",
-			"name": "[variables('AppGatewayPublicIP').ResourceName]",
+			"location": "[variables('Tier7BalancerSubnet').ResourceLocation]",
+			"properties":
+			{
+				"addressPrefix": "[variables('Tier7BalancerSubnet').AddressPrefix]"
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]"
+			]
+		},
+		{
+			"comments": "Public IP address for the Tier 7 Load Balancer.",
+			"name": "[variables('Tier7BalancerPublicIP').ResourceName]",
 			"type": "Microsoft.Network/publicIPAddresses",
-			"location": "[variables('AppGatewayPublicIP').ResourceLocation]",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('Tier7BalancerPublicIP').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "App Gateway / Public IP"
+				"displayName": "Tier7BalancerPublicIP"
 			},
 			"properties":
 			{
 				"publicIPAllocationMethod": "Dynamic",
 				"dnsSettings":
 				{
-					"domainNameLabel": "[variables('AppGatewayPublicIP').DomainName]"
+					"domainNameLabel": "[variables('Tier7BalancerPublicIP').DomainName]"
 				}
 			}
 		},
 		{
 			"comments": "Tier 7 Load balancer for the Service Fabric cluster.",
-			"apiVersion": "2017-10-01",
-			"name": "[variables('AppGateway').ResourceName]",
+			"name": "[variables('Tier7Balancer').ResourceName]",
 			"type": "Microsoft.Network/applicationGateways",
-			"location": "[variables('AppGateway').ResourceLocation]",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('Tier7Balancer').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "App Gateway"
+				"displayName": "Tier7Balancer"
 			},
 			"properties":
 			{
 				"sku":
 				{
-					"name": "[variables('AppGateway').SKUName]",
-					"capacity": "[variables('AppGateway').SKUCapacity]"
+					"name": "[variables('Tier7Balancer').SKUName]",
+					"capacity": "[variables('Tier7Balancer').SKUCapacity]"
 				},
 				"gatewayIPConfigurations":
 				[
@@ -478,7 +487,7 @@
 						{
 							"subnet":
 							{
-								"id": "[variables('AppGatewaySubnet').ResourceId]"
+								"id": "[variables('Tier7BalancerSubnet').ResourceId]"
 							}
 						}
 					}
@@ -491,7 +500,7 @@
 						{
 							"PublicIPAddress":
 							{
-								"id": "[variables('AppGatewayPublicIP').ResourceId]"
+								"id": "[variables('Tier7BalancerPublicIP').ResourceId]"
 							}
 						}
 					}
@@ -509,7 +518,7 @@
 				"backendAddressPools":
 				[
 					{
-						"name": "[variables('AppGateway').PrimaryBackendAddressPoolName]"
+						"name": "[variables('Tier7Balancer').PrimaryBackendAddressPoolName]"
 					}
 				],
 				"backendHttpSettingsCollection":
@@ -532,11 +541,11 @@
 						{
 							"FrontendIPConfiguration":
 							{
-								"Id": "[concat(variables('AppGateway').ResourceId, '/frontendIPConfigurations/appGatewayFrontendIP')]"
+								"Id": "[concat(variables('Tier7Balancer').ResourceId, '/frontendIPConfigurations/appGatewayFrontendIP')]"
 							},
 							"FrontendPort":
 							{
-								"Id": "[concat(variables('AppGateway').ResourceId, '/frontendPorts/appGatewayFrontendPort')]"
+								"Id": "[concat(variables('Tier7Balancer').ResourceId, '/frontendPorts/appGatewayFrontendPort')]"
 							},
 							"Protocol": "Http",
 							"SslCertificate": null
@@ -552,15 +561,15 @@
 							"RuleType": "Basic",
 							"httpListener":
 							{
-								"id": "[concat(variables('AppGateway').ResourceId, '/httpListeners/appGatewayHttpListener')]"
+								"id": "[concat(variables('Tier7Balancer').ResourceId, '/httpListeners/appGatewayHttpListener')]"
 							},
 							"backendAddressPool":
 							{
-								"id": "[variables('AppGateway').FabricBackendAddressPoolId]"
+								"id": "[variables('Tier7Balancer').FabricBackendAddressPoolId]"
 							},
 							"backendHttpSettings":
 							{
-								"id": "[concat(variables('AppGateway').ResourceId, '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
+								"id": "[concat(variables('Tier7Balancer').ResourceId, '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
 							}
 						}
 					}
@@ -568,19 +577,40 @@
 			},
 			"dependsOn":
 			[
-				"[variables('VirtualNetwork').ResourceId]",
-				"[variables('AppGatewayPublicIP').ResourceId]"
+				"[variables('Tier4BalancerSubnet').ResourceId]",
+				"[variables('Tier7BalancerPublicIP').ResourceId]"
+			]
+		},
+		{
+			"comments": "Subnet for the Service Fabric cluster.",
+			"name": "[variables('FabricSubnet').ResourceName]",
+			"type": "Microsoft.Network/virtualNetworks/subnets",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('FabricSubnet').ResourceLocation]",
+			"properties":
+			{
+				"addressPrefix": "[variables('FabricSubnet').AddressPrefix]",
+				"serviceEndpoints":
+				[
+					{
+						"service": "Microsoft.Storage"
+					}
+				]
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]"
 			]
 		},
 		{
 			"comments": "Virtual Machine Scale Set for Service Fabric cluster.",
-			"apiVersion": "2017-03-30",
 			"name": "[variables('FabricScaleSet').ResourceName]",
 			"type": "Microsoft.Compute/virtualMachineScaleSets",
+			"apiVersion": "2017-12-01",
 			"location": "[variables('FabricScaleSet').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Fabric / Scale Set"
+				"displayName": "FabricScaleSet"
 			},
 			"sku":
 			{
@@ -658,19 +688,19 @@
 												"applicationGatewayBackendAddressPools":
 												[
 													{
-														"id": "[variables('AppGateway').FabricBackendAddressPoolId]"
+														"id": "[variables('Tier7Balancer').FabricBackendAddressPoolId]"
 													}
 												],
 												"loadBalancerBackendAddressPools":
 												[
 													{
-														"id": "[variables('LoadBalancer').FabricBackendAddressPoolId]"
+														"id": "[variables('Tier4Balancer').FabricBackendAddressPoolId]"
 													}
 												],
 												"loadBalancerInboundNatPools":
 												[
 													{
-														"id": "[variables('LoadBalancer').FabricInboundNatPoolId]"
+														"id": "[variables('Tier4Balancer').FabricInboundNatPoolId]"
 													}
 												]
 											}
@@ -679,42 +709,49 @@
 								}
 							}
 						]
-					},
-					"extensionProfile":
-					{
-						"extensions":
-						[
-							{
-								"name": "master_ServiceFabricNode",
-								"properties":
-								{
-									"publisher": "Microsoft.Azure.ServiceFabric",
-									"type": "ServiceFabricNode",
-									"typeHandlerVersion": "1.0",
-									"autoUpgradeMinorVersion": true,
-									"settings":
-									{
-										"clusterEndpoint": "[reference(variables('Fabric').ResourceId).clusterEndpoint]",
-										"nodeTypeRef": "master",
-										"dataPath": "D:\\\\SvcFab",
-										"durabilityLevel": "[variables('Fabric').ReliabilityLevel]",
-										"enableParallelJobs": true,
-										"nicPrefixOverride": "[variables('FabricSubnet').AddressPrefix]",
-										"certificate":
-										{
-											"thumbprint": "[variables('Fabric').ManagementCertificate]",
-											"x509StoreName": "[variables('Fabric').CertificateStore]"
-										}
-									}
-								}
-							}
-						]
 					}
 				}
 			},
 			"dependsOn":
 			[
-				"[variables('AppGateway').ResourceId]"
+				"[variables('FabricSubnet').ResourceId]",
+				"[variables('Tier4Balancer').ResourceId]",
+				"[variables('Tier7Balancer').ResourceId]"
+			]
+		},
+		{
+			"comments": "Service Fabric extension for Virtual Machines.",
+			"name": "[concat(variables('FabricScaleSet').ResourceName, '/master_ServiceFabricNode')]",
+			"type": "Microsoft.Compute/virtualMachineScaleSets/extensions",
+			"apiVersion": "2017-12-01",
+			"tags":
+			{
+				"displayName": "FabricScaleSet/Extension"
+			},
+			"properties":
+			{
+				"publisher": "Microsoft.Azure.ServiceFabric",
+				"type": "ServiceFabricNode",
+				"typeHandlerVersion": "1.0",
+				"autoUpgradeMinorVersion": true,
+				"settings":
+				{
+					"clusterEndpoint": "[reference(variables('Fabric').ResourceId).clusterEndpoint]",
+					"nodeTypeRef": "master",
+					"dataPath": "D:\\\\SvcFab",
+					"durabilityLevel": "Bronze",
+					"enableParallelJobs": true,
+					"nicPrefixOverride": "[variables('FabricSubnet').AddressPrefix]",
+					"certificate":
+					{
+						"thumbprint": "[variables('Fabric').ManagementCertificate]",
+						"x509StoreName": "[variables('Fabric').CertificateStore]"
+					}
+				}
+			},
+			"dependsOn":
+			[
+				"[variables('FabricScaleSet').ResourceId]"
 			]
 		},
 		{
@@ -760,7 +797,7 @@
 					"thumbprint": "[variables('Fabric').ManagementCertificate]",
 					"x509StoreName": "[variables('Fabric').CertificateStore]"
 				},
-				"managementEndpoint": "[concat('https://', reference(variables('LoadBalancerPublicIP').ResourceId).dnsSettings.fqdn, ':', variables('Fabric').HttpManagementPort)]",
+				"managementEndpoint": "[concat('https://', reference(variables('Tier4BalancerPublicIP').ResourceId).dnsSettings.fqdn, ':', variables('Fabric').HttpManagementPort)]",
 				"nodeTypes":
 				[
 					{
@@ -787,10 +824,10 @@
 	],
 	"outputs":
 	{
-		"VirtualNetwork.ResourceId":
+		"Network.ResourceId":
 		{
 			"type": "string",
-			"value": "[variables('VirtualNetwork').ResourceId]"
+			"value": "[variables('Network').ResourceId]"
 		}
 	}
 }
