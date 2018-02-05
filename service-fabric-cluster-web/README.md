@@ -21,6 +21,8 @@ This template assumes that you already have certificates uploaded to your keyvau
 
 ### Azure Key Vault
 
+Azure Key Vault is used as a safe storage location for certificates and as a way to get certificates installed on Service Fabric clusters in Azure.
+
 **ClusterCertificate** - This certificate is required to secure the communication between the nodes on a cluster.
 
 **ServerCertificate** - This certificate is required to connect to a cluster.
