@@ -255,6 +255,7 @@
 			"ResourceName": "[variables('Names').Fabric]",
 			"ResourceId": "[resourceId('Microsoft.ServiceFabric/clusters', variables('Names').Fabric)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"ClusterName": "[variables('Names').Fabric]",
 			"ReliabilityLevel": "[parameters('fabricReliabilityLevel')]",
 			"CertificateStore": "My",
 			"ServerCertificate": "[parameters('serverCertificateThumbprint')]",
@@ -276,7 +277,9 @@
 			"location": "[variables('Network').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Network"
+				"displayName": "Network",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
 			},
 			"properties":
 			{
@@ -327,7 +330,9 @@
 			"location": "[variables('Tier4BalancerPublicIP').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Tier4BalancerPublicIP"
+				"displayName": "Tier4BalancerPublicIP",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
 			},
 			"properties":
 			{
@@ -346,7 +351,9 @@
 			"location": "[variables('Tier4Balancer').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Tier4Balancer"
+				"displayName": "Tier4Balancer",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
 			},
 			"properties":
 			{
@@ -472,7 +479,9 @@
 			"location": "[variables('Tier7BalancerPublicIP').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Tier7BalancerPublicIP"
+				"displayName": "Tier7BalancerPublicIP",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
 			},
 			"properties":
 			{
@@ -491,7 +500,9 @@
 			"location": "[variables('Tier7Balancer').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Tier7Balancer"
+				"displayName": "Tier7Balancer",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
 			},
 			"properties":
 			{
@@ -610,7 +621,9 @@
 			"location": "[variables('FabricScaleSet').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "FabricScaleSet"
+				"displayName": "FabricScaleSet",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
 			},
 			"sku":
 			{
@@ -756,7 +769,9 @@
 			"location": "[variables('Fabric').ResourceLocation]",
 			"tags":
 			{
-				"displayName": "Fabric"
+				"displayName": "Fabric",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
 			},
 			"properties":
 			{
