@@ -3,33 +3,38 @@
 	"contentVersion": "1.0.0.0",
 	"parameters":
 	{
-		"resourcesNamePrefix":
+		"resourcesNamesSuffix":
 		{
-			"value": "pros01"
+			"value": "CUSTOMER-ENV"
 		},
-		"resourcesNameSuffix":
+		"certificateKeyVaultId":
 		{
-			"value": "dev"
-		},
-		"keyVaultId":
-		{
-			"value": "/subscriptions/66ef014e-adb6-4868-9182-52fe0deeeb00/resourceGroups/secrets/providers/Microsoft.KeyVault/vaults/sevax-dev"
+			"value": "KEY VAULT ID"
 		},
 		"computeAdminUserName":
 		{
-			"value": "wishmaster"
+			"value": "ADMIN USER NAME"
 		},
 		"computeAdminPassword":
 		{
-			"value": "Ho11y-sh!t1920"
+			"value": "ADMIN PASSWORD"
 		},
-		"fabricManagementCertificate":
+		"serverCertificateThumbprint":
 		{
-			"value": "A3906CC99ADA97AD87EAC4BADD09339860B64FC2"
+			"value": "THUMBPRINT"
 		},
-		"fabricCertificateUrl":
+		"serverCertificateSecretUrl":
 		{
-			"value": "https://sevax-dev.vault.azure.net/secrets/customer-dev-t4lb/3951e320d8b2419a8c5975438ecf0256"
-		}
+			"value": "URL"
+		},
+   "AADTenantId": {
+     "value": "AZURE AD TENANT ID"
+   },
+   "fabricManageWebAppId": {
+     "value": "AZURE AD APP ID"
+   },
+   "fabricManageNativeAppId": {
+     "value": "AZURE AD APP ID"
+   }
 	}
 }

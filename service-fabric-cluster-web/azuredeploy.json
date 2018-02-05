@@ -3,20 +3,12 @@
 	"contentVersion": "1.0.0.0",
 	"parameters":
 	{
-		"resourcesNamePrefix":
+		"resourcesNamesSuffix":
 		{
 			"type": "string",
 			"metadata":
 			{
-				"description": "Prefix to names of the resources."
-			}
-		},
-		"resourcesNameSuffix":
-		{
-			"type": "string",
-			"metadata":
-			{
-				"description": "Postfix to names of the resources."
+				"description": "Suffix of the names of the resources."
 			}
 		},
 		"resourcesLocation":
@@ -26,14 +18,6 @@
 			"metadata":
 			{
 				"description": "Location of the resources."
-			}
-		},
-		"keyVaultId":
-		{
-			"type": "string",
-			"metadata":
-			{
-				"description": "Identifier of the Key Vault resource which stores the secrets."
 			}
 		},
 		"appGatewaySKUName":
@@ -114,7 +98,15 @@
 				"description": "Cluster reliability level indicates replica set size of system service."
 			}
 		},
-		"fabricManagementCertificate":
+		"certificateKeyVaultId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Key Vault resource which stores the sertificates."
+			}
+		},
+		"serverCertificateThumbprint":
 		{
 			"type": "string",
 			"metadata":
@@ -122,12 +114,42 @@
 				"description": "Thumbprint of the managemnet certificate."
 			}
 		},
-		"fabricCertificateUrl":
+		"serverCertificateSecretUrl":
 		{
 			"type": "string",
 			"metadata":
 			{
 				"description": "Thumbprint of the managemnet certificate."
+			}
+		},
+		"AADTenantId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the Azure Active Directory tenant."
+			}
+		},
+		"fabricManageWebAppId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the Fabric Management Wed Application within the Azure Active Directory tenant."
+			}
+		},
+		"fabricManageNativeAppId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the Fabric Management Native Application within the Azure Active Directory tenant."
 			}
 		}
 	},
@@ -135,21 +157,21 @@
 	{
 		"Names":
 		{
-			"Network": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"Network": "[parameters('resourcesNamesSuffix')]",
 			"Tier4BalancerSubnet": "Tier4BalancerSubnet",
-			"Tier4BalancerPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t4lb')]",
-			"Tier4Balancer": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"Tier4BalancerPublicIP": "[concat(parameters('resourcesNamesSuffix'), '-t4lb')]",
+			"Tier4Balancer": "[parameters('resourcesNamesSuffix')]",
 			"Tier7BalancerSubnet": "Tier7BalancerSubnet",
-			"Tier7BalancerPublicIP": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'), '-t7lb')]",
-			"Tier7Balancer": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
+			"Tier7BalancerPublicIP": "[concat(parameters('resourcesNamesSuffix'), '-t7lb')]",
+			"Tier7Balancer": "[parameters('resourcesNamesSuffix')]",
 			"FabricSubnet": "FabricSubnet",
-			"FabricScaleSet": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
-			"Fabric": "[concat(parameters('resourcesNamePrefix'),'-', parameters('resourcesNameSuffix'))]",
-			"ComputeStorage": "[replace(concat(parameters('resourcesNamePrefix'), parameters('resourcesNameSuffix')), '-', '')]"
+			"FabricScaleSet": "[parameters('resourcesNamesSuffix')]",
+			"Fabric": "[parameters('resourcesNamesSuffix')]",
+			"ComputeStorage": "[replace(parameters('resourcesNamesSuffix'), '-', '')]"
 		},
 		"KeyVault":
 		{
-			"ResourceId": "[parameters('keyVaultId')]"
+			"ResourceId": "[parameters('certificateKeyVaultId')]"
 		},
 		"Network":
 		{
@@ -235,13 +257,13 @@
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"ReliabilityLevel": "[parameters('fabricReliabilityLevel')]",
 			"CertificateStore": "My",
-			"ManagementCertificate": "[parameters('fabricManagementCertificate')]",
+			"ServerCertificate": "[parameters('serverCertificateThumbprint')]",
 			"TcpManagementPort": 19000,
 			"HttpManagementPort": 19080,
 			"ReverseProxyPort": 19081,
-			"AADTenantId": "532f7cfc-6532-4a17-9b88-bc33f63ba53a",
-			"AADClusterApplication": "a3720cf0-b5db-4b10-b285-c1d96bb00c48",
-			"AADClientApplication": "f09ae6bd-fb45-49a9-8078-851bd7942088"
+			"AADTenantId": "[parameters('AADTenantId')]",
+			"fabricManageWebAppId": "[parameters('fabricManageWebAppId')]",
+			"fabricManageNativeAppId": "[parameters('fabricManageNativeAppId')]"
 		}
 	},
 	"resources":
@@ -618,7 +640,7 @@
 								"vaultCertificates":
 								[
 									{
-										"certificateUrl": "[parameters('fabricCertificateUrl')]",
+										"certificateUrl": "[parameters('serverCertificateSecretUrl')]",
 										"certificateStore": "[variables('Fabric').CertificateStore]"
 									}
 								]
@@ -687,6 +709,36 @@
 								}
 							}
 						]
+					},
+					"extensionProfile":
+					{
+						"extensions":
+						[
+							{
+								"name": "master_ServiceFabricNode",
+								"properties":
+								{
+									"publisher": "Microsoft.Azure.ServiceFabric",
+									"type": "ServiceFabricNode",
+									"typeHandlerVersion": "1.0",
+									"autoUpgradeMinorVersion": true,
+									"settings":
+									{
+										"clusterEndpoint": "[reference(variables('Fabric').ResourceId).clusterEndpoint]",
+										"nodeTypeRef": "master",
+										"dataPath": "D:\\\\SvcFab",
+										"durabilityLevel": "Bronze",
+										"enableParallelJobs": true,
+										"nicPrefixOverride": "[variables('FabricSubnet').AddressPrefix]",
+										"certificate":
+										{
+											"thumbprint": "[variables('Fabric').ServerCertificate]",
+											"x509StoreName": "[variables('Fabric').CertificateStore]"
+										}
+									}
+								}
+							}
+						]
 					}
 				}
 			},
@@ -694,41 +746,6 @@
 			[
 				"[variables('Tier4Balancer').ResourceId]",
 				"[variables('Tier7Balancer').ResourceId]"
-			]
-		},
-		{
-			"comments": "Service Fabric extension for Virtual Machines.",
-			"name": "[concat(variables('FabricScaleSet').ResourceName, '/FabricNode')]",
-			"type": "Microsoft.Compute/virtualMachineScaleSets/extensions",
-			"apiVersion": "2017-12-01",
-			"tags":
-			{
-				"displayName": "FabricScaleSet"
-			},
-			"properties":
-			{
-				"publisher": "Microsoft.Azure.ServiceFabric",
-				"type": "ServiceFabricNode",
-				"typeHandlerVersion": "1.0",
-				"autoUpgradeMinorVersion": true,
-				"settings":
-				{
-					"clusterEndpoint": "[reference(variables('Fabric').ResourceId).clusterEndpoint]",
-					"nodeTypeRef": "master",
-					"dataPath": "D:\\\\SvcFab",
-					"durabilityLevel": "Bronze",
-					"enableParallelJobs": true,
-					"nicPrefixOverride": "[variables('FabricSubnet').AddressPrefix]",
-					"certificate":
-					{
-						"thumbprint": "[variables('Fabric').ManagementCertificate]",
-						"x509StoreName": "[variables('Fabric').CertificateStore]"
-					}
-				}
-			},
-			"dependsOn":
-			[
-				"[variables('FabricScaleSet').ResourceId]"
 			]
 		},
 		{
@@ -745,7 +762,7 @@
 			{
 				"certificate":
 				{
-					"thumbprint": "[variables('Fabric').ManagementCertificate]",
+					"thumbprint": "[variables('Fabric').ServerCertificate]",
 					"x509StoreName": "[variables('Fabric').CertificateStore]"
 				},
 				"reliabilityLevel": "[variables('Fabric').ReliabilityLevel]",
@@ -771,7 +788,7 @@
 				],
 				"reverseProxyCertificate":
 				{
-					"thumbprint": "[variables('Fabric').ManagementCertificate]",
+					"thumbprint": "[variables('Fabric').ServerCertificate]",
 					"x509StoreName": "[variables('Fabric').CertificateStore]"
 				},
 				"managementEndpoint": "[concat('https://', reference(variables('Tier4BalancerPublicIP').ResourceId).dnsSettings.fqdn, ':', variables('Fabric').HttpManagementPort)]",
@@ -792,15 +809,15 @@
 							"endPort": 65534
 						},
 						"isPrimary": true,
-						"vmInstanceCount": 1,
+						"vmInstanceCount": "[variables('FabricScaleSet').SKUCapacity]",
 						"reverseProxyEndpointPort": "[variables('Fabric').ReverseProxyPort]"
 					}
 				],
 				"azureActiveDirectory":
 				{
 					"tenantId": "[variables('Fabric').AADTenantId]",
-					"clusterApplication": "[variables('Fabric').AADClusterApplication]",
-					"clientApplication": "[variables('Fabric').AADClientApplication]"
+					"clusterApplication": "[variables('Fabric').fabricManageWebAppId]",
+					"clientApplication": "[variables('Fabric').fabricManageNativeAppId]"
 				}
 			},
 			"dependsOn":
