@@ -5,3 +5,4 @@
 *.user
 *.targets
 /bin/Debug/staging/vs
+/.vs

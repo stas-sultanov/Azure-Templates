@@ -165,9 +165,9 @@
 			"Tier7BalancerPublicIP": "[concat(parameters('resourcesNamesSuffix'), '-t7lb')]",
 			"Tier7Balancer": "[parameters('resourcesNamesSuffix')]",
 			"FabricSubnet": "FabricSubnet",
+			"FabricDiagStorage": "[concat(replace(parameters('resourcesNamesSuffix'), '-', ''), 'diag')]",
 			"FabricScaleSet": "[parameters('resourcesNamesSuffix')]",
-			"Fabric": "[parameters('resourcesNamesSuffix')]",
-			"ComputeStorage": "[replace(parameters('resourcesNamesSuffix'), '-', '')]"
+			"Fabric": "[parameters('resourcesNamesSuffix')]"
 		},
 		"KeyVault":
 		{
@@ -236,6 +236,12 @@
 			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', variables('Names').FabricSubnet)]",
 			"ResourceLocation": "[parameters('resourcesLocation')]",
 			"AddressPrefix": "10.0.0.0/26"
+		},
+		"FabricDiagStorage":
+		{
+			"ResourceName": "[variables('Names').FabricDiagStorage]",
+			"ResourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('Names').FabricDiagStorage)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]"
 		},
 		"FabricScaleSet":
 		{
@@ -614,6 +620,42 @@
 			]
 		},
 		{
+			"comments": "Storage for diagnostics data.",
+			"name": "[variables('FabricDiagStorage').ResourceName]",
+			"type": "Microsoft.Storage/storageAccounts",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('FabricDiagStorage').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "FabricDiagStorage",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
+			},
+			"sku":
+			{
+				"name": "Standard_LRS"
+			},
+			"kind": "Storage",
+			"properties":
+			{
+				"networkAcls":
+				{
+					"bypass": "AzureServices",
+					"virtualNetworkRules":
+					[
+						{
+							"id": "[variables('FabricSubnet').ResourceId]"
+						}
+					],
+					"defaultAction": "Deny"
+				}
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]"
+			]
+		},
+		{
 			"comments": "Virtual Machine Scale Set for Service Fabric cluster.",
 			"name": "[variables('FabricScaleSet').ResourceName]",
 			"type": "Microsoft.Compute/virtualMachineScaleSets",
@@ -748,6 +790,11 @@
 											"thumbprint": "[variables('Fabric').ServerCertificate]",
 											"x509StoreName": "[variables('Fabric').CertificateStore]"
 										}
+									},
+									"protectedSettings":
+									{
+										"StorageAccountKey1": "[listKeys(variables('FabricDiagStorage').ResourceId, '2017-10-01').keys[0].value]",
+										"StorageAccountKey2": "[listKeys(variables('FabricDiagStorage').ResourceId, '2017-10-01').keys[1].value]"
 									}
 								}
 							}
@@ -758,7 +805,8 @@
 			"dependsOn":
 			[
 				"[variables('Tier4Balancer').ResourceId]",
-				"[variables('Tier7Balancer').ResourceId]"
+				"[variables('Tier7Balancer').ResourceId]",
+				"[variables('FabricDiagStorage').ResourceId]"
 			]
 		},
 		{
@@ -807,6 +855,14 @@
 					"x509StoreName": "[variables('Fabric').CertificateStore]"
 				},
 				"managementEndpoint": "[concat('https://', reference(variables('Tier4BalancerPublicIP').ResourceId).dnsSettings.fqdn, ':', variables('Fabric').HttpManagementPort)]",
+				"diagnosticsStorageAccountConfig":
+				{
+					"storageAccountName": "[variables('FabricDiagStorage').ResourceName]",
+					"protectedAccountKeyName": "StorageAccountKey1",
+					"blobEndpoint": "[reference(variables('FabricDiagStorage').ResourceId, '2017-10-01').primaryEndpoints.blob]",
+					"queueEndpoint": "[reference(variables('FabricDiagStorage').ResourceId, '2017-10-01').primaryEndpoints.queue]",
+					"tableEndpoint": "[reference(variables('FabricDiagStorage').ResourceId, '2017-10-01').primaryEndpoints.table]"
+				},
 				"nodeTypes":
 				[
 					{
@@ -837,7 +893,8 @@
 			},
 			"dependsOn":
 			[
-				"[variables('Tier4BalancerPublicIP').ResourceId]"
+				"[variables('Tier4BalancerPublicIP').ResourceId]",
+				"[variables('FabricDiagStorage').ResourceId]"
 			]
 		}
 	],

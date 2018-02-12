@@ -27,14 +27,17 @@
 		{
 			"value": "URL"
 		},
-   "AADTenantId": {
-     "value": "AZURE AD TENANT ID"
-   },
-   "fabricManageWebAppId": {
-     "value": "AZURE AD APP ID"
-   },
-   "fabricManageNativeAppId": {
-     "value": "AZURE AD APP ID"
-   }
+		"AADTenantId":
+		{
+			"value": "AZURE AD TENANT ID"
+		},
+		"fabricManageWebAppId":
+		{
+			"value": "AZURE AD APP ID"
+		},
+		"fabricManageNativeAppId":
+		{
+			"value": "AZURE AD APP ID"
+		}
 	}
 }
