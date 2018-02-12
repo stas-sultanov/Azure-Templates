@@ -27,7 +27,7 @@
 		{
 			"value": "URL"
 		},
-		"AADTenantId":
+		"directoryTennantId":
 		{
 			"value": "AZURE AD TENANT ID"
 		},
@@ -38,6 +38,10 @@
 		"fabricManageNativeAppId":
 		{
 			"value": "AZURE AD APP ID"
+		},
+		"fabricAppInsightsKey":
+		{
+			"value": "APP INSIGHTS KEY"
 		}
 	}
 }

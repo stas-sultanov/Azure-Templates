@@ -122,7 +122,7 @@
 				"description": "Thumbprint of the managemnet certificate."
 			}
 		},
-		"AADTenantId":
+		"directoryTennantId":
 		{
 			"type": "string",
 			"minLength": 36,
@@ -150,6 +150,16 @@
 			"metadata":
 			{
 				"description": "Identifier of the Fabric Management Native Application within the Azure Active Directory tenant."
+			}
+		},
+		"fabricAppInsightsKey":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Appliaction Insgihts Key for Service Fabric."
 			}
 		}
 	},
@@ -268,7 +278,7 @@
 			"TcpManagementPort": 19000,
 			"HttpManagementPort": 19080,
 			"ReverseProxyPort": 19081,
-			"AADTenantId": "[parameters('AADTenantId')]",
+			"directoryTennantId": "[parameters('directoryTennantId')]",
 			"fabricManageWebAppId": "[parameters('fabricManageWebAppId')]",
 			"fabricManageNativeAppId": "[parameters('fabricManageNativeAppId')]"
 		}
@@ -363,7 +373,6 @@
 			},
 			"properties":
 			{
-
 				"frontendIPConfigurations":
 				[
 					{
@@ -452,24 +461,25 @@
 				],
 				"outboundNatRules":
 				[
-				],
-				"inboundNatPools":
-				[
-					{
-						"name": "[variables('Tier4Balancer').FabricInboundNatPoolName]",
-						"properties":
-						{
-							"frontendIPConfiguration":
-							{
-								"id": "[variables('Tier4Balancer').FabricFrontendIPConfigurationId]"
-							},
-							"protocol": "Tcp",
-							"frontendPortRangeStart": 3389,
-							"frontendPortRangeEnd": 4500,
-							"backendPort": 3389
-						}
-					}
 				]
+				//,
+				//"inboundNatPools":
+				//[
+				//	{
+				//		"name": "[variables('Tier4Balancer').FabricInboundNatPoolName]",
+				//		"properties":
+				//		{
+				//			"frontendIPConfiguration":
+				//			{
+				//				"id": "[variables('Tier4Balancer').FabricFrontendIPConfigurationId]"
+				//			},
+				//			"protocol": "Tcp",
+				//			"frontendPortRangeStart": 3389,
+				//			"frontendPortRangeEnd": 4500,
+				//			"backendPort": 3389
+				//		}
+				//	}
+				//]
 			},
 			"dependsOn":
 			[
@@ -751,13 +761,14 @@
 													{
 														"id": "[variables('Tier4Balancer').FabricBackendAddressPoolId]"
 													}
-												],
-												"loadBalancerInboundNatPools":
-												[
-													{
-														"id": "[variables('Tier4Balancer').FabricInboundNatPoolId]"
-													}
 												]
+												//,
+												//"loadBalancerInboundNatPools":
+												//[
+												//	{
+												//		"id": "[variables('Tier4Balancer').FabricInboundNatPoolId]"
+												//	}
+												//]
 											}
 										}
 									]
@@ -795,6 +806,80 @@
 									{
 										"StorageAccountKey1": "[listKeys(variables('FabricDiagStorage').ResourceId, '2017-10-01').keys[0].value]",
 										"StorageAccountKey2": "[listKeys(variables('FabricDiagStorage').ResourceId, '2017-10-01').keys[1].value]"
+									}
+								}
+							},
+							{
+								"name": "Diagnostics",
+								"properties":
+								{
+									"publisher": "Microsoft.Azure.Diagnostics",
+									"type": "IaaSDiagnostics",
+									"typeHandlerVersion": "1.5",
+									"autoUpgradeMinorVersion": true,
+									"settings":
+									{
+										"StorageAccount": "[variables('FabricDiagStorage').ResourceName]",
+										"WadCfg":
+										{
+											"DiagnosticMonitorConfiguration":
+											{
+												"overallQuotaInMB": "50000",
+												"sinks": "applicationInsights",
+												"EtwProviders":
+												{
+													"EtwEventSourceProviderConfiguration":
+													[
+														{
+															"provider": "Microsoft-ServiceFabric-Services",
+															"scheduledTransferPeriod": "PT5M",
+															"DefaultEvents":
+															{
+																"eventDestination": "ServiceFabricReliableServiceEventTable"
+															}
+														},
+														{
+															"provider": "Microsoft-ServiceFabric-Actors",
+															"scheduledTransferKeywordFilter": "1",
+															"scheduledTransferPeriod": "PT5M",
+															"DefaultEvents":
+															{
+																"eventDestination": "ServiceFabricReliableActorEventTable"
+															}
+														}
+													],
+													"EtwManifestProviderConfiguration":
+													[
+														{
+															"provider": "cbd93bc2-71e5-4566-b3a7-595d8eeca6e8",
+															"scheduledTransferLogLevelFilter": "Information",
+															"scheduledTransferKeywordFilter": "4611686018427387904",
+															"scheduledTransferPeriod": "PT5M",
+															"DefaultEvents":
+															{
+																"eventDestination": "ServiceFabricSystemEventTable"
+															}
+														}
+													]
+												}
+											},
+											"SinksConfig":
+											{
+												"Sink":
+												[
+													{
+														"name": "applicationInsights",
+														"ApplicationInsights": "[parameters('fabricAppInsightsKey')]"
+													}
+												]
+											}
+										}
+									},
+									"protectedSettings":
+									{
+										"storageAccountName": "[variables('FabricDiagStorage').ResourceName]",
+										"storageAccountKey": "[listKeys(variables('FabricDiagStorage').ResourceId, '2017-10-01').keys[0].value]",
+										"storageAccountEndPoint": "https://core.windows.net/"
 									}
 								}
 							}
@@ -886,7 +971,7 @@
 				],
 				"azureActiveDirectory":
 				{
-					"tenantId": "[variables('Fabric').AADTenantId]",
+					"tenantId": "[variables('Fabric').directoryTennantId]",
 					"clusterApplication": "[variables('Fabric').fabricManageWebAppId]",
 					"clientApplication": "[variables('Fabric').fabricManageNativeAppId]"
 				}
