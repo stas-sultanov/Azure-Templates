@@ -1,0 +1,55 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourcesNamesSuffix":
+		{
+			"value": "CUSTOMER-ENV"
+		},
+		"directoryTennantId":
+		{
+			"value": "AAD-TENNANT-ID"
+		},
+		"certificatesKeyVaultId":
+		{
+			"value": "KEY-VAULT-RESOURCE-ID"
+		},
+		"computeAdminUsername":
+		{
+			"value": "ADMIN-LOGIN"
+		},
+		"computeAdminPassword":
+		{
+			"value": "ADMIN-PASSWORD"
+		},
+		"fabricClusterCertificateThumbprint":
+		{
+			"value": "CERTIFICAT-THUMBPRINT"
+		},
+		"fabricClusterCertificateSecretUrl":
+		{
+			"value": "CERTIFICAT-URL"
+		},
+		"fabricReverseProxyCertificateThumbprint":
+		{
+			"value": "CERTIFICAT-THUMBPRINT"
+		},
+		"fabricReverseProxyCertificateSecretUrl":
+		{
+			"value": "CERTIFICAT-URL"
+		},
+		"fabricClusterApplicationId":
+		{
+			"value": "CLUSTER-APPLICATION-ID"
+		},
+		"fabricClientApplicationId":
+		{
+			"value": "CLIENT-APPLICATION-ID"
+		},
+		"fabricAppInsightsKey":
+		{
+			"value": "INSIGHTS-KEY"
+		}
+	}
+}

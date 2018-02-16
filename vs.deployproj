@@ -29,11 +29,11 @@
       <Visible>False</Visible>
     </None>
     <Content Include="Deploy-AzureResourceGroup.ps1" />
-    <Content Include="service-fabric-cluster-web\azuredeploy.json" />
-    <Content Include="service-fabric-cluster-web\azuredeploy.parameters.json" />
+    <Content Include="service-fabric-cluster\azuredeploy.json" />
+    <Content Include="service-fabric-cluster\azuredeploy.parameters.json" />
     <None Include="LICENSE" />
     <None Include="README.md" />
-    <None Include="service-fabric-cluster-web\README.md" />
+    <None Include="service-fabric-cluster\README.md" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />
 </Project>

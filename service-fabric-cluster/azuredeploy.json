@@ -1,0 +1,854 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourcesNamesSuffix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Suffix of the names of the resources."
+			}
+		},
+		"resourcesLocation":
+		{
+			"type": "string",
+			"defaultValue": "westeurope",
+			"metadata":
+			{
+				"description": "Location of the resources."
+			}
+		},
+		"directoryTennantId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the Azure Active Directory tenant."
+			}
+		},
+		"certificatesKeyVaultId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Key Vault resource which stores the sertificates."
+			}
+		},
+		"computeSKUName":
+		{
+			"type": "string",
+			"defaultValue": "Standard_D1_v2",
+			"allowedValues":
+			[
+				"Standard_D1_v2"
+			],
+			"metadata":
+			{
+				"description": "Specifies the tier of virtual machines in a scale set."
+			}
+		},
+		"computeSKUCapacity":
+		{
+			"type": "int",
+			"defaultValue": 1,
+			"minValue": 1,
+			"maxValue": 100,
+			"metadata":
+			{
+				"description": "Specifies the number of virtual machines in the scale set."
+			}
+		},
+		"computeAdminUsername":
+		{
+			"type": "string",
+			"minLength": 1
+		},
+		"computeAdminPassword":
+		{
+			"type": "securestring"
+		},
+		"fabricReliabilityLevel":
+		{
+			"type": "string",
+			"defaultValue": "None",
+			"allowedValues":
+			[
+				"None",
+				"Bronze",
+				"Silver",
+				"Gold",
+				"Platinum"
+			],
+			"metadata":
+			{
+				"description": "Cluster reliability level indicates replica set size of system service."
+			}
+		},
+		"fabricClusterCertificateThumbprint":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "This certificate is required to secure the communication between the nodes on a cluster."
+			}
+		},
+		"fabricClusterCertificateSecretUrl":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Thumbprint of the managemnet certificate."
+			}
+		},
+		"fabricReverseProxyCertificateThumbprint":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "This certificate is required to secure the reverse proxy."
+			}
+		},
+		"fabricReverseProxyCertificateSecretUrl":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Thumbprint of the managemnet certificate."
+			}
+		},
+		"fabricClusterApplicationId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the Fabric Management Wed Application within the Azure Active Directory tenant."
+			}
+		},
+		"fabricClientApplicationId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the Fabric Management Native Application within the Azure Active Directory tenant."
+			}
+		},
+		"fabricAppInsightsKey":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Appliaction Insgihts Key for Service Fabric."
+			}
+		}
+	},
+	"variables":
+	{
+		"Names":
+		{
+			"Network": "[parameters('resourcesNamesSuffix')]",
+			"LoadBalancerSubnet": "LoadBalancerSubnet",
+			"PublicIP": "[parameters('resourcesNamesSuffix')]",
+			"LoadBalancer": "[parameters('resourcesNamesSuffix')]",
+			"ComputeSubnet": "ComputeSubnet",
+			"DiagnosticsStorage": "[concat(replace(parameters('resourcesNamesSuffix'), '-', ''), 'diags')]",
+			"Compute": "[parameters('resourcesNamesSuffix')]",
+			"Fabric": "[parameters('resourcesNamesSuffix')]"
+		},
+		"KeyVault":
+		{
+			"ResourceId": "[parameters('certificatesKeyVaultId')]"
+		},
+		"Network":
+		{
+			"ResourceName": "[variables('Names').Network]",
+			"ResourceId": "[resourceId('Microsoft.Network/virtualNetworks', variables('Names').Network)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AddressPrefix": "10.0.0.0/24"
+		},
+		"PublicIP":
+		{
+			"ResourceName": "[variables('Names').PublicIP]",
+			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').PublicIP)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"DomainName": "[variables('Names').PublicIP]"
+		},
+		"LoadBalancerSubnet":
+		{
+			"ResourceName": "[variables('Names').LoadBalancerSubnet]",
+			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', variables('Names').LoadBalancerSubnet)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AddressPrefix": "10.0.0.128/27"
+		},
+		"LoadBalancer":
+		{
+			"ResourceName": "[variables('Names').LoadBalancer]",
+			"ResourceId": "[resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"ComputeFrontendIPConfigurationName": "Compute",
+			"ComputeFrontendIPConfigurationId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/frontendIPConfigurations/Compute')]",
+			"ComputeBackendAddressPoolName": "Compute",
+			"ComputeBackendAddressPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/backendAddressPools/Compute')]",
+			"ComputeInboundNatPoolName": "Compute",
+			"ComputeInboundNatPoolId": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('Names').LoadBalancer), '/inboundNatPools/Compute')]"
+		},
+		"DiagnosticsStorage":
+		{
+			"ResourceName": "[variables('Names').DiagnosticsStorage]",
+			"ResourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('Names').DiagnosticsStorage)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"ApiVersion": "2017-10-01"
+		},
+		"ComputeSubnet":
+		{
+			"ResourceName": "[variables('Names').ComputeSubnet]",
+			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', variables('Names').ComputeSubnet)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AddressPrefix": "10.0.0.0/26"
+		},
+		"Compute":
+		{
+			"ResourceName": "[variables('Names').Compute]",
+			"ResourceId": "[resourceId('Microsoft.Compute/virtualMachineScaleSets', variables('Names').Compute)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"SKUName": "[parameters('computeSKUName')]",
+			"SKUCapacity": "[parameters('computeSKUCapacity')]",
+			"ComputerNamePrefix": "master",
+			"AdminUsername": "[parameters('computeAdminUsername')]",
+			"AdminPassword": "[parameters('computeAdminPassword')]",
+			"ImageSku": "2016-Datacenter-with-Containers",
+			"ManagedDiskStorageAccountType": "Standard_LRS"
+		},
+		"Fabric":
+		{
+			"ResourceName": "[variables('Names').Fabric]",
+			"ResourceId": "[resourceId('Microsoft.ServiceFabric/clusters', variables('Names').Fabric)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"ClusterName": "[variables('Names').Fabric]",
+			"ReliabilityLevel": "[parameters('fabricReliabilityLevel')]",
+			"CertificateStore": "My",
+			"ClusterCertificateThumbprint": "[parameters('fabricClusterCertificateThumbprint')]",
+			"ClusterCertificateSecretUrl": "[parameters('fabricClusterCertificateSecretUrl')]",
+			"ReverseProxyCertificateThumbprint": "[parameters('fabricReverseProxyCertificateThumbprint')]",
+			"ReverseProxyCertificateSecretUrl": "[parameters('fabricReverseProxyCertificateSecretUrl')]",
+			"TcpManagementPort": 19000,
+			"HttpManagementPort": 19080,
+			"ReverseProxyPort": 443,
+			"DirectoryTennantId": "[parameters('directoryTennantId')]",
+			"ClusterApplicationId": "[parameters('fabricClusterApplicationId')]",
+			"ClientApplicationId": "[parameters('fabricClientApplicationId')]",
+			"AppInsightsKey": "[parameters('fabricAppInsightsKey')]"
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "Public IP address for the Tier 4 Load Balancer.",
+			"name": "[variables('PublicIP').ResourceName]",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('PublicIP').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "PublicIP",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
+			},
+			"properties":
+			{
+				"publicIPAllocationMethod": "Dynamic",
+				"dnsSettings":
+				{
+					"domainNameLabel": "[variables('PublicIP').DomainName]"
+				}
+			}
+		},
+		{
+			"comments": "Virtual network.",
+			"name": "[variables('Network').ResourceName]",
+			"type": "Microsoft.Network/virtualNetworks",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('Network').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Network",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
+			},
+			"properties":
+			{
+				"addressSpace":
+				{
+					"addressPrefixes":
+					[
+						"[variables('Network').AddressPrefix]"
+					]
+				},
+				"subnets":
+				[
+					{
+						"name": "[variables('LoadBalancerSubnet').ResourceName]",
+						"properties":
+						{
+							"addressPrefix": "[variables('LoadBalancerSubnet').AddressPrefix]"
+						}
+					},
+					{
+						"name": "[variables('ComputeSubnet').ResourceName]",
+						"properties":
+						{
+							"addressPrefix": "[variables('ComputeSubnet').AddressPrefix]",
+							"serviceEndpoints":
+							[
+								{
+									"service": "Microsoft.Storage"
+								}
+							]
+						}
+					}
+				]
+			}
+		},
+		{
+			"comments": "Tier 4 Load Balancer of the Virtual Machine Scale Set.",
+			"name": "[variables('LoadBalancer').ResourceName]",
+			"type": "Microsoft.Network/loadBalancers",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('LoadBalancer').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "LoadBalancer",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
+			},
+			"properties":
+			{
+				"frontendIPConfigurations":
+				[
+					{
+						"name": "[variables('LoadBalancer').ComputeFrontendIPConfigurationName]",
+						"properties":
+						{
+							"publicIPAddress":
+							{
+								"id": "[variables('PublicIP').ResourceId]"
+							}
+						}
+					}
+				],
+				"backendAddressPools":
+				[
+					{
+						"name": "[variables('LoadBalancer').ComputeBackendAddressPoolName]"
+					}
+				],
+				"loadBalancingRules":
+				[
+					{
+						"name": "ReverseProxy",
+						"properties":
+						{
+							"frontendIPConfiguration":
+							{
+								"id": "[variables('LoadBalancer').ComputeFrontendIPConfigurationId]"
+							},
+							"backendAddressPool":
+							{
+								"id": "[variables('LoadBalancer').ComputeBackendAddressPoolId]"
+							},
+							"probe":
+							{
+								"id": "[concat(variables('LoadBalancer').ResourceId, '/probes/ReverseProxy')]"
+							},
+							"protocol": "Tcp",
+							"frontendPort": "[variables('Fabric').ReverseProxyPort]",
+							"backendPort": "[variables('Fabric').ReverseProxyPort]"
+						}
+					},
+					{
+						"name": "FabricManagementTcp",
+						"properties":
+						{
+							"frontendIPConfiguration":
+							{
+								"id": "[variables('LoadBalancer').ComputeFrontendIPConfigurationId]"
+							},
+							"backendAddressPool":
+							{
+								"id": "[variables('LoadBalancer').ComputeBackendAddressPoolId]"
+							},
+							"probe":
+							{
+								"id": "[concat(variables('LoadBalancer').ResourceId, '/probes/FabricManagementTcp')]"
+							},
+							"protocol": "Tcp",
+							"frontendPort": "[variables('Fabric').TcpManagementPort]",
+							"backendPort": "[variables('Fabric').TcpManagementPort]"
+						}
+					},
+					{
+						"name": "FabricManagementHttp",
+						"properties":
+						{
+							"frontendIPConfiguration":
+							{
+								"id": "[variables('LoadBalancer').ComputeFrontendIPConfigurationId]"
+							},
+							"backendAddressPool":
+							{
+								"id": "[variables('LoadBalancer').ComputeBackendAddressPoolId]"
+							},
+							"probe":
+							{
+								"id": "[concat(variables('LoadBalancer').ResourceId, '/probes/FabricManagementHttp')]"
+							},
+							"protocol": "Tcp",
+							"frontendPort": "[variables('Fabric').HttpManagementPort]",
+							"backendPort": "[variables('Fabric').HttpManagementPort]"
+						}
+					}
+				],
+				"probes":
+				[
+					{
+						"name": "ReverseProxy",
+						"properties":
+						{
+							"protocol": "Tcp",
+							"port": "[variables('Fabric').ReverseProxyPort]"
+						}
+					},
+					{
+						"name": "FabricManagementTcp",
+						"properties":
+						{
+							"protocol": "Tcp",
+							"port": "[variables('Fabric').TcpManagementPort]"
+						}
+					},
+					{
+						"name": "FabricManagementHttp",
+						"properties":
+						{
+							"protocol": "Tcp",
+							"port": "[variables('Fabric').HttpManagementPort]"
+						}
+					}
+				]
+				//,
+				//"inboundNatPools":
+				//[
+				//	{
+				//		"name": "[variables('LoadBalancer').ComputeInboundNatPoolName]",
+				//		"properties":
+				//		{
+				//			"frontendIPConfiguration":
+				//			{
+				//				"id": "[variables('LoadBalancer').ComputeFrontendIPConfigurationId]"
+				//			},
+				//			"protocol": "Tcp",
+				//			"frontendPortRangeStart": 3389,
+				//			"frontendPortRangeEnd": 4500,
+				//			"backendPort": 3389
+				//		}
+				//	}
+				//]
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]",
+				"[variables('PublicIP').ResourceId]"
+			]
+		},
+		{
+			"comments": "Storage for diagnostics data.",
+			"name": "[variables('DiagnosticsStorage').ResourceName]",
+			"type": "Microsoft.Storage/storageAccounts",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('DiagnosticsStorage').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "DiagnosticsStorage",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
+			},
+			"sku":
+			{
+				"name": "Standard_LRS"
+			},
+			"kind": "Storage",
+			"properties":
+			{
+				"networkAcls":
+				{
+					"bypass": "AzureServices",
+					"virtualNetworkRules":
+					[
+						{
+							"id": "[variables('ComputeSubnet').ResourceId]"
+						}
+					],
+					"defaultAction": "Deny"
+				}
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]"
+			]
+		},
+		{
+			"comments": "Virtual Machine Scale Set for Service Fabric cluster.",
+			"name": "[variables('Compute').ResourceName]",
+			"type": "Microsoft.Compute/virtualMachineScaleSets",
+			"apiVersion": "2017-12-01",
+			"location": "[variables('Compute').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Compute",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
+			},
+			"sku":
+			{
+				"name": "[variables('Compute').SKUName]",
+				"capacity": "[variables('Compute').SKUCapacity]"
+			},
+			"properties":
+			{
+				"upgradePolicy":
+				{
+					"mode": "Automatic"
+				},
+				"virtualMachineProfile":
+				{
+					"osProfile":
+					{
+						"computerNamePrefix": "[variables('Compute').ComputerNamePrefix]",
+						"adminUsername": "[variables('Compute').AdminUsername]",
+						"adminPassword": "[variables('Compute').AdminPassword]",
+						"secrets":
+						[
+							{
+								"sourceVault":
+								{
+									"id": "[variables('KeyVault').ResourceId]"
+								},
+								"vaultCertificates":
+								[
+									{
+										"certificateUrl": "[variables('Fabric').ClusterCertificateSecretUrl]",
+										"certificateStore": "[variables('Fabric').CertificateStore]"
+									},
+									{
+										"certificateUrl": "[variables('Fabric').ReverseProxyCertificateSecretUrl]",
+										"certificateStore": "[variables('Fabric').CertificateStore]"
+									}
+								]
+							}
+						]
+					},
+					"storageProfile":
+					{
+						"imageReference":
+						{
+							"publisher": "MicrosoftWindowsServer",
+							"offer": "WindowsServer",
+							"sku": "[variables('Compute').ImageSku]",
+							"version": "latest"
+						},
+						"osDisk":
+						{
+							"caching": "ReadWrite",
+							"createOption": "FromImage",
+							"managedDisk":
+							{
+								"storageAccountType": "[variables('Compute').ManagedDiskStorageAccountType]"
+							}
+						}
+					},
+					"networkProfile":
+					{
+						"networkInterfaceConfigurations":
+						[
+							{
+								"name": "NIC-0",
+								"properties":
+								{
+									"primary": true,
+									"ipConfigurations":
+									[
+										{
+											"name": "NIC-0-config",
+											"properties":
+											{
+												"subnet":
+												{
+													"id": "[variables('ComputeSubnet').ResourceId]"
+												},
+												"loadBalancerBackendAddressPools":
+												[
+													{
+														"id": "[variables('LoadBalancer').ComputeBackendAddressPoolId]"
+													}
+												]
+												//,
+												//"loadBalancerInboundNatPools":
+												//[
+												//	{
+												//		"id": "[variables('LoadBalancer').ComputeInboundNatPoolId]"
+												//	}
+												//]
+											}
+										}
+									]
+								}
+							}
+						]
+					},
+					"extensionProfile":
+					{
+						"extensions":
+						[
+							{
+								"name": "ServiceFabric",
+								"properties":
+								{
+									"publisher": "Microsoft.Azure.ServiceFabric",
+									"type": "ServiceFabricNode",
+									"typeHandlerVersion": "1.0",
+									"autoUpgradeMinorVersion": true,
+									"settings":
+									{
+										"clusterEndpoint": "[reference(variables('Fabric').ResourceId).clusterEndpoint]",
+										"nodeTypeRef": "master",
+										"dataPath": "D:\\\\SvcFab",
+										"durabilityLevel": "Bronze",
+										"enableParallelJobs": true,
+										"nicPrefixOverride": "[variables('ComputeSubnet').AddressPrefix]",
+										"reverseProxyCertificate":
+										{
+											"thumbprint": "[variables('Fabric').ReverseProxyCertificateThumbprint]",
+											"x509StoreName": "[variables('Fabric').CertificateStore]"
+										},
+										"certificate":
+										{
+											"thumbprint": "[variables('Fabric').ClusterCertificateThumbprint]",
+											"x509StoreName": "[variables('Fabric').CertificateStore]"
+										}
+									},
+									"protectedSettings":
+									{
+										"StorageAccountKey1": "[listKeys(variables('DiagnosticsStorage').ResourceId, variables('DiagnosticsStorage').ApiVersion).keys[0].value]",
+										"StorageAccountKey2": "[listKeys(variables('DiagnosticsStorage').ResourceId, variables('DiagnosticsStorage').ApiVersion).keys[1].value]"
+									}
+								}
+							},
+							{
+								"name": "Diagnostics",
+								"properties":
+								{
+									"publisher": "Microsoft.Azure.Diagnostics",
+									"type": "IaaSDiagnostics",
+									"typeHandlerVersion": "1.9",
+									"autoUpgradeMinorVersion": true,
+									"settings":
+									{
+										"StorageAccount": "[variables('DiagnosticsStorage').ResourceName]",
+										"WadCfg":
+										{
+											"DiagnosticMonitorConfiguration":
+											{
+												"overallQuotaInMB": "50000",
+												"sinks": "applicationInsights",
+												"PerformanceCounters":
+												{
+													"scheduledTransferPeriod": "PT1M",
+													"PerformanceCounterConfiguration":
+													[
+														{
+															"counterSpecifier": "\\Memory\\Available MBytes",
+															"sampleRate": "PT1M"
+														},
+														{
+															"counterSpecifier": "\\Processor(_Total)\\% Processor Time",
+															"sampleRate": "PT1M",
+															"unit": "percent"
+														}
+													]
+												},
+												"EtwProviders":
+												{
+													"EtwEventSourceProviderConfiguration":
+													[
+														{
+															"provider": "Microsoft-ServiceFabric-Services",
+															"scheduledTransferPeriod": "PT5M",
+															"DefaultEvents":
+															{
+																"eventDestination": "ServiceFabricReliableServiceEventTable"
+															}
+														},
+														{
+															"provider": "Microsoft-ServiceFabric-Actors",
+															"scheduledTransferKeywordFilter": "1",
+															"scheduledTransferPeriod": "PT5M",
+															"DefaultEvents":
+															{
+																"eventDestination": "ServiceFabricReliableActorEventTable"
+															}
+														}
+													],
+													"EtwManifestProviderConfiguration":
+													[
+														{
+															"provider": "cbd93bc2-71e5-4566-b3a7-595d8eeca6e8",
+															"scheduledTransferLogLevelFilter": "Information",
+															"scheduledTransferKeywordFilter": "4611686018427387904",
+															"scheduledTransferPeriod": "PT5M",
+															"DefaultEvents":
+															{
+																"eventDestination": "ServiceFabricSystemEventTable"
+															}
+														}
+													]
+												}
+											},
+											"SinksConfig":
+											{
+												"Sink":
+												[
+													{
+														"name": "applicationInsights",
+														"ApplicationInsights": "[variables('Fabric').AppInsightsKey]"
+													}
+												]
+											}
+										}
+									},
+									"protectedSettings":
+									{
+										"storageAccountName": "[variables('DiagnosticsStorage').ResourceName]",
+										"storageAccountKey": "[listKeys(variables('DiagnosticsStorage').ResourceId, variables('DiagnosticsStorage').ApiVersion).keys[0].value]",
+										"storageAccountEndPoint": "https://core.windows.net/"
+									}
+								}
+							}
+						]
+					}
+				},
+				"overprovision": false
+			},
+			"dependsOn":
+			[
+				"[variables('LoadBalancer').ResourceId]",
+				"[variables('DiagnosticsStorage').ResourceId]",
+				"[variables('Fabric').ResourceId]"
+			]
+		},
+		{
+			"comments": "Service Fabric cluster.",
+			"apiVersion": "2016-09-01",
+			"name": "[variables('Fabric').ResourceName]",
+			"type": "Microsoft.ServiceFabric/clusters",
+			"location": "[variables('Fabric').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Fabric",
+				"resourceType": "Service Fabric",
+				"clusterName": "[variables('Fabric').ClusterName]"
+			},
+			"properties":
+			{
+				"certificate":
+				{
+					"thumbprint": "[variables('Fabric').ClusterCertificateThumbprint]",
+					"x509StoreName": "[variables('Fabric').CertificateStore]"
+				},
+				"reliabilityLevel": "[variables('Fabric').ReliabilityLevel]",
+				"upgradeMode": "Automatic",
+				"clientCertificateThumbprints":
+				[
+				],
+				"clientCertificateCommonNames":
+				[
+				],
+				"fabricSettings":
+				[
+					{
+						"name": "Security",
+						"parameters":
+						[
+							{
+								"name": "ClusterProtectionLevel",
+								"value": "EncryptAndSign"
+							}
+						]
+					}
+				],
+				"reverseProxyCertificate":
+				{
+					"thumbprint": "[variables('Fabric').ReverseProxyCertificateThumbprint]",
+					"x509StoreName": "[variables('Fabric').CertificateStore]"
+				},
+				"managementEndpoint": "[concat('https://', reference(variables('PublicIP').ResourceId).dnsSettings.fqdn, ':', variables('Fabric').HttpManagementPort)]",
+				"diagnosticsStorageAccountConfig":
+				{
+					"storageAccountName": "[variables('DiagnosticsStorage').ResourceName]",
+					"protectedAccountKeyName": "StorageAccountKey1",
+					"blobEndpoint": "[reference(variables('DiagnosticsStorage').ResourceId, variables('DiagnosticsStorage').ApiVersion).primaryEndpoints.blob]",
+					"queueEndpoint": "[reference(variables('DiagnosticsStorage').ResourceId, variables('DiagnosticsStorage').ApiVersion).primaryEndpoints.queue]",
+					"tableEndpoint": "[reference(variables('DiagnosticsStorage').ResourceId, variables('DiagnosticsStorage').ApiVersion).primaryEndpoints.table]"
+				},
+				"nodeTypes":
+				[
+					{
+						"name": "master",
+						"clientConnectionEndpointPort": "[variables('Fabric').TcpManagementPort]",
+						"httpGatewayEndpointPort": "[variables('Fabric').HttpManagementPort]",
+						"applicationPorts":
+						{
+							"startPort": 20000,
+							"endPort": 30000
+						},
+						"ephemeralPorts":
+						{
+							"startPort": 49152,
+							"endPort": 65534
+						},
+						"isPrimary": true,
+						"vmInstanceCount": "[variables('Compute').SKUCapacity]",
+						"reverseProxyEndpointPort": "[variables('Fabric').ReverseProxyPort]"
+					}
+				],
+				"azureActiveDirectory":
+				{
+					"tenantId": "[variables('Fabric').DirectoryTennantId]",
+					"clusterApplication": "[variables('Fabric').ClusterApplicationId]",
+					"clientApplication": "[variables('Fabric').ClientApplicationId]"
+				}
+			},
+			"dependsOn":
+			[
+				"[variables('PublicIP').ResourceId]",
+				"[variables('DiagnosticsStorage').ResourceId]"
+			]
+		}
+	],
+	"outputs":
+	{
+		"Network.ResourceId":
+		{
+			"type": "string",
+			"value": "[variables('Network').ResourceId]"
+		}
+	}
+}

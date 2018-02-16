@@ -1,4 +1,4 @@
-# Service Fabric Cluster for Web Apps
+# Service Fabric Cluster with Reverse Proxy
 
 <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fstas-sultanov%2FAzure-Templates%2Fmaster%2Fservice-fabric-cluster-web%2Fazuredeploy.json" target="_blank">
     <img src="http://azuredeploy.net/deploybutton.png"/>
@@ -11,13 +11,12 @@
 
 This template allows to deploy a secure Service Fabric Cluster which is improved to host the Web applications.
 
-This template utilizes Application Gateway to provide HTTP traffic routing to the Web applications hosted on the cluster.
+This template utilizes Reverse Proxy for HTTP traffic routing to the Web applications hosted on the cluster.
 
-This template utilizes Service Fabric Reverse Proxy service to route HTTP traffic within the cluster.
-
-This template assumes that you already have certificates uploaded to your keyvault.
+This template provides secure access to the cluster via Azure Active Directory.
 
 ## Prerequisites
+
 
 ### Azure Key Vault
 
@@ -25,9 +24,7 @@ Azure Key Vault is used as a safe storage location for certificates and as a way
 
 **ClusterCertificate** - This certificate is required to secure the communication between the nodes on a cluster.
 
-**ServerCertificate** - This certificate is required to connect to a cluster.
-
-**ReverseProxyCertificate** - This certificate is required to secure a reverse proxy.
+**ReverseProxyCertificate** - This SSL certificate is required to secure a reverse proxy.
 
 [Read More](https://docs.microsoft.com/en-us/azure/security/azure-service-fabric-security-overview) about the Azure Service Fabric security.
 
