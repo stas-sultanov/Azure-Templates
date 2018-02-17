@@ -1,0 +1,305 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourcesNamesSuffix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Suffix to the names of the resources."
+			}
+		},
+		"resourcesPrimaryLocation":
+		{
+			"type": "string",
+			"defaultValue": "westeurope",
+			"metadata":
+			{
+				"description": "Location of the primary resources."
+			}
+		},
+		"resourcesSecondaryLocation":
+		{
+			"type": "string",
+			"defaultValue": "northeurope",
+			"metadata":
+			{
+				"description": "Location of the secondary resources."
+			}
+		},
+		"directoryTenantId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the Azure Active Directory tenant."
+			}
+		},
+		"sqlServerDirectoryAdminId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the SQL Server administrator within the Azure Active Directory."
+			}
+		},
+		"sqlServerDirectoryAdminLogin":
+		{
+			"type": "string",
+			"minLength": 1,
+			"metadata":
+			{
+				"description": "Login of the SQL Server administrator within the Azure Active Directory."
+			}
+		},
+		"sqlServerAdminLogin":
+		{
+			"type": "string",
+			"minLength": 1,
+			"metadata":
+			{
+				"description": "Login of the Azure SQL Server administrator."
+			}
+		},
+		"sqlServerAdminPassword":
+		{
+			"type": "securestring",
+			"minLength": 12,
+			"metadata":
+			{
+				"description": "Password of the Azure SQL Server administrator."
+			}
+		},
+		"databases":
+		{
+			"type": "array",
+			"defaultValue":
+			[
+			],
+			"metadata":
+			{
+				"description": "Array of objects which specifies Name and SKU of each database to deploy."
+			}
+		}
+	},
+	"variables":
+	{
+		"ResourcesNames":
+		{
+			"SqlServer":
+			[
+				"[concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p'))]",
+				"[concat(parameters('resourcesNamesSuffix'),'-s')]"
+			],
+			"SqlServerFailoverGroup": "[concat(parameters('resourcesNamesSuffix'),'-fg')]"
+		},
+		"Sql":
+		{
+			"Admin":
+			{
+				"Login": "[parameters('sqlServerAdminLogin')]",
+				"Password": "[parameters('sqlServerAdminPassword')]"
+			},
+			"ActiveDirectory":
+			{
+				"TenantId": "[parameters('directoryTenantId')]",
+				"AdminId": "[parameters('sqlServerDirectoryAdminId')]",
+				"AdminLogin": "[parameters('sqlServerDirectoryAdminLogin')]"
+			},
+			"ServersCount": "[if(empty(parameters('resourcesSecondaryLocation')), 1, 2)]",
+			"DatabasesCount": "[length(parameters('databases'))]",
+			"Servers":
+			[
+				{
+					"ResourceName": "[variables('ResourcesNames').SqlServer[0]]",
+					"ResourceId": "[resourceId('Microsoft.Sql/servers', variables('ResourcesNames').SqlServer[0])]",
+					"ResourceLocation": "[parameters('resourcesPrimaryLocation')]"
+				},
+				{
+					"ResourceName": "[variables('ResourcesNames').SqlServer[1]]",
+					"ResourceId": "[resourceId('Microsoft.Sql/servers', variables('ResourcesNames').SqlServer[1])]",
+					"ResourceLocation": "[parameters('resourcesSecondaryLocation')]"
+				}
+			],
+			"copy":
+			[
+				{
+					"name": "Databases",
+					"count": "[length(parameters('databases'))]",
+					"input":
+					{
+						"ResourceName": "[concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p'), '/', parameters('databases')[copyIndex('Databases')].Name)]",
+						"ResourceId": "[resourceId('Microsoft.SQL/servers/databases', concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p')), parameters('databases')[copyIndex('Databases')].Name)]",
+						"ResourceLocation": "[parameters('resourcesPrimaryLocation')]",
+						"Name": "[parameters('databases')[copyIndex('Databases')].Name]",
+						"SKU": "[parameters('databases')[copyIndex('Databases')].SKU]"
+					}
+				}
+			],
+			"FailoverGroup":
+			{
+				"ResourceName": "[concat(variables('ResourcesNames').SqlServer[0], '/', parameters('databases')[copyIndex('Databases')].Name)]",
+				"ResourceId": "[resourceId('Microsoft.SQL/servers/databases', variables('ResourcesNames').SqlServer[0], parameters('databases')[copyIndex('Databases')].Name)]",
+				"ResourceLocation": "[parameters('resourcesPrimaryLocation')]"
+			}
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "SQL Servers which will host the databases required by the application.",
+			"copy":
+			{
+				"name": "SqlServers",
+				"count": "[variables('Sql').ServersCount]",
+				"mode": "Parallel"
+			},
+			"name": "[variables('Sql').Servers[copyIndex()].ResourceName]",
+			"type": "Microsoft.Sql/servers",
+			"apiVersion": "2014-04-01",
+			"location": "[variables('Sql').Servers[copyIndex()].ResourceLocation]",
+			"tags":
+			{
+				"displayName": "[concat('Sql / Server ', copyIndex())]"
+			},
+			"properties":
+			{
+				"administratorLogin": "[variables('Sql').Admin.Login]",
+				"administratorLoginPassword": "[variables('Sql').Admin.Password]"
+			},
+			"resources":
+			[
+				{
+					"name": "ActiveDirectory",
+					"type": "administrators",
+					"apiVersion": "2014-04-01",
+					"location": "[variables('Sql').Servers[copyIndex()].ResourceLocation]",
+					"dependsOn":
+					[
+						"[variables('Sql').Servers[copyIndex()].ResourceId]"
+					],
+					"properties":
+					{
+						"administratorType": "ActiveDirectory",
+						"tenantId": "[variables('Sql').ActiveDirectory.TenantId]",
+						"sid": "[variables('Sql').ActiveDirectory.AdminId]",
+						"login": "[variables('Sql').ActiveDirectory.AdminLogin]"
+					}
+				},
+				{
+					"name": "AllowInternalIps",
+					"type": "firewallRules",
+					"apiVersion": "2014-04-01",
+					"location": "[variables('Sql').Servers[copyIndex()].ResourceLocation]",
+					"dependsOn":
+					[
+						"[variables('Sql').Servers[copyIndex()].ResourceId]"
+					],
+					"properties":
+					{
+						"startIpAddress": "0.0.0.0",
+						"endIpAddress": "0.0.0.0"
+					}
+				}
+			]
+		},
+		{
+			"comments": "Databases required by the appliaction.",
+			"copy":
+			{
+				"name": "SqlDatabases",
+				"count": "[variables('Sql').DatabasesCount]",
+				"mode": "Parallel"
+			},
+			"name": "[variables('Sql').Databases[copyIndex()].ResourceName]",
+			"type": "Microsoft.Sql/servers/databases",
+			"apiVersion": "2014-04-01",
+			"location": "[variables('Sql').Servers[0].ResourceLocation]",
+			"tags":
+			{
+				"displayName": "[concat('Sql / Database - ', parameters('databases')[copyIndex()].Name)]"
+			},
+			"dependsOn":
+			[
+				"[variables('Sql').Servers[0].ResourceId]"
+			],
+			"properties":
+			{
+				"requestedServiceObjectiveName": "[variables('Sql').Databases[copyIndex()].SKU]"
+			}
+		},
+		{
+			//"condition": "[variables('Resources').IsFailover]",
+			"name": "[variables('Sql').FailoverGroup.ResourceName]",
+			"type": "Microsoft.Sql/servers/failoverGroups",
+			"apiVersion": "2015-05-01-preview",
+			"location": "[variables('Sql').FailoverGroup.ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Sql / Failover Group"
+			},
+			"properties":
+			{
+				"partnerServers":
+				[
+					{
+						"id": "[variables('Sql').Servers[1].ResourceId]"
+					}
+				],
+				"readWriteEndpoint":
+				{
+					"failoverPolicy": "Automatic",
+					"failoverWithDataLossGracePeriodMinutes": 60
+				},
+				"readOnlyEndpoint":
+				{
+					"failoverPolicy": "Disabled"
+				},
+				//"copy":
+				//[
+				//	{
+				//		"name": "databases",
+				//		"count": "[length(parameters('databases'))]",
+				//		"input": "[variables('Sql').Databases[copyIndex('Databases')].ResourceId]"
+				//	}
+				//],
+				"databases":
+				[
+					"[variables('Sql').Databases[0].ResourceId]",
+					"[variables('Sql').Databases[1].ResourceId]",
+					"[variables('Sql').Databases[2].ResourceId]"
+				]
+			},
+			"dependsOn":
+			[
+				"[variables('Sql').Servers[0].ResourceId]",
+				"[variables('Sql').Servers[1].ResourceId]",
+				"SqlDatabases"
+			]
+		}
+	],
+	"outputs":
+	{
+		"Sql":
+		{
+			"value": "[variables('Sql')]",
+			"type": "object"
+		}
+		//"Sql.Primary.ServerName":
+		//{
+		//	"type": "string",
+		//	"value": "[concat(variables('Resources').FailoverGroupName, '.database.windows.net')]"
+		//},
+		//"Sql.Secondary.ServerName":
+		//{
+		//	"type": "string",
+		//	"value": "[concat(variables('Resources').FailoverGroupName, '.secondary.database.windows.net')]"
+		//}
+	}
+}

@@ -31,6 +31,9 @@
     <Content Include="Deploy-AzureResourceGroup.ps1" />
     <Content Include="service-fabric-cluster\azuredeploy.json" />
     <Content Include="service-fabric-cluster\azuredeploy.parameters.json" />
+    <None Include="failover-database\azuredeploy.json" />
+    <None Include="failover-database\azuredeploy.parameters.json" />
+    <None Include="failover-database\README.md" />
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="service-fabric-cluster\README.md" />

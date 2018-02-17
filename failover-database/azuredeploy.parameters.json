@@ -1,0 +1,53 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourcesNamesSuffix":
+		{
+			"value": "CUSTOMER-ENV"
+		},
+		"resourcesPrimaryLocation":
+		{
+			"value": "westeurope"
+		},
+		"resourcesSecondaryLocation":
+		{
+			"value": "northeurope"
+		},
+		"directoryTenantId":
+		{
+			"value": "AAD-TENNANT-ID"
+		},
+		"sqlServerDirectoryAdminId":
+		{
+			"value": "AAD-ADMIN-OBJECT-ID"
+		},
+		"sqlServerDirectoryAdminLogin":
+		{
+			"value": "AAD-ADMIN-LOGIN"
+		},
+		"sqlServerAdminLogin":
+		{
+			"value": "ADMIN-LOGIN"
+		},
+		"sqlServerAdminPassword":
+		{
+			"value": "ADMIN-PASSWORD"
+		},
+		"databases":
+		{
+			"value":
+			[
+				{
+					"Name": "BASE-0",
+					"SKU": "S0"
+				},
+				{
+					"Name": "BASE-1",
+					"SKU": "S1"
+				}
+			]
+		}
+	}
+}
