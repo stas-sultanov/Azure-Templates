@@ -76,7 +76,7 @@
 				"description": "Password of the Azure SQL Server administrator."
 			}
 		},
-		"databases":
+		"sqlDatabases":
 		{
 			"type": "array",
 			"defaultValue":
@@ -97,10 +97,11 @@
 				"[concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p'))]",
 				"[concat(parameters('resourcesNamesSuffix'),'-s')]"
 			],
-			"SqlServerFailoverGroup": "[concat(parameters('resourcesNamesSuffix'),'-fg')]"
+			"SqlServerFailoverGroup": "[parameters('resourcesNamesSuffix')]"
 		},
 		"Sql":
 		{
+			"IsFailover": "[not(empty(parameters('resourcesSecondaryLocation')))]",
 			"Admin":
 			{
 				"Login": "[parameters('sqlServerAdminLogin')]",
@@ -113,7 +114,7 @@
 				"AdminLogin": "[parameters('sqlServerDirectoryAdminLogin')]"
 			},
 			"ServersCount": "[if(empty(parameters('resourcesSecondaryLocation')), 1, 2)]",
-			"DatabasesCount": "[length(parameters('databases'))]",
+			"DatabasesCount": "[length(parameters('sqlDatabases'))]",
 			"Servers":
 			[
 				{
@@ -131,22 +132,23 @@
 			[
 				{
 					"name": "Databases",
-					"count": "[length(parameters('databases'))]",
+					"count": "[length(parameters('sqlDatabases'))]",
 					"input":
 					{
-						"ResourceName": "[concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p'), '/', parameters('databases')[copyIndex('Databases')].Name)]",
-						"ResourceId": "[resourceId('Microsoft.SQL/servers/databases', concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p')), parameters('databases')[copyIndex('Databases')].Name)]",
+						"ResourceName": "[concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p'), '/', parameters('sqlDatabases')[copyIndex('Databases')].Name)]",
+						"ResourceId": "[resourceId('Microsoft.SQL/servers/databases', concat(parameters('resourcesNamesSuffix'), if(empty(parameters('resourcesSecondaryLocation')),'','-p')), parameters('sqlDatabases')[copyIndex('Databases')].Name)]",
 						"ResourceLocation": "[parameters('resourcesPrimaryLocation')]",
-						"Name": "[parameters('databases')[copyIndex('Databases')].Name]",
-						"SKU": "[parameters('databases')[copyIndex('Databases')].SKU]"
+						"Name": "[parameters('sqlDatabases')[copyIndex('Databases')].Name]",
+						"SKU": "[parameters('sqlDatabases')[copyIndex('Databases')].SKU]"
 					}
 				}
 			],
 			"FailoverGroup":
 			{
-				"ResourceName": "[concat(variables('ResourcesNames').SqlServer[0], '/', parameters('databases')[copyIndex('Databases')].Name)]",
-				"ResourceId": "[resourceId('Microsoft.SQL/servers/databases', variables('ResourcesNames').SqlServer[0], parameters('databases')[copyIndex('Databases')].Name)]",
-				"ResourceLocation": "[parameters('resourcesPrimaryLocation')]"
+				"ResourceName": "[concat(variables('ResourcesNames').SqlServer[0], '/', variables('ResourcesNames').SqlServerFailoverGroup)]",
+				"ResourceId": "[resourceId('Microsoft.SQL/servers/databases', variables('ResourcesNames').SqlServer[0], variables('ResourcesNames').SqlServerFailoverGroup)]",
+				"ResourceLocation": "[parameters('resourcesPrimaryLocation')]",
+				"Name": "[variables('ResourcesNames').SqlServerFailoverGroup]"
 			}
 		}
 	},
@@ -166,7 +168,7 @@
 			"location": "[variables('Sql').Servers[copyIndex()].ResourceLocation]",
 			"tags":
 			{
-				"displayName": "[concat('Sql / Server ', copyIndex())]"
+				"displayName": "[concat('Sql / Server - ', copyIndex())]"
 			},
 			"properties":
 			{
@@ -223,7 +225,7 @@
 			"location": "[variables('Sql').Servers[0].ResourceLocation]",
 			"tags":
 			{
-				"displayName": "[concat('Sql / Database - ', parameters('databases')[copyIndex()].Name)]"
+				"displayName": "[concat('Sql / Database - ', parameters('sqlDatabases')[copyIndex()].Name)]"
 			},
 			"dependsOn":
 			[
@@ -235,7 +237,7 @@
 			}
 		},
 		{
-			//"condition": "[variables('Resources').IsFailover]",
+			"condition": "[variables('Sql').IsFailover]",
 			"name": "[variables('Sql').FailoverGroup.ResourceName]",
 			"type": "Microsoft.Sql/servers/failoverGroups",
 			"apiVersion": "2015-05-01-preview",
@@ -261,14 +263,6 @@
 				{
 					"failoverPolicy": "Disabled"
 				},
-				//"copy":
-				//[
-				//	{
-				//		"name": "databases",
-				//		"count": "[length(parameters('databases'))]",
-				//		"input": "[variables('Sql').Databases[copyIndex('Databases')].ResourceId]"
-				//	}
-				//],
 				"databases":
 				[
 					"[variables('Sql').Databases[0].ResourceId]",
@@ -286,20 +280,15 @@
 	],
 	"outputs":
 	{
-		"Sql":
+		"primarySqlServerName":
 		{
-			"value": "[variables('Sql')]",
-			"type": "object"
+			"type": "string",
+			"value": "[concat(variables('Sql').FailoverGroup.Name, '.database.windows.net')]"
+		},
+		"secondarySQLServerName":
+		{
+			"type": "string",
+			"value": "[concat(variables('Sql').FailoverGroup.Name, '.secondary.database.windows.net')]"
 		}
-		//"Sql.Primary.ServerName":
-		//{
-		//	"type": "string",
-		//	"value": "[concat(variables('Resources').FailoverGroupName, '.database.windows.net')]"
-		//},
-		//"Sql.Secondary.ServerName":
-		//{
-		//	"type": "string",
-		//	"value": "[concat(variables('Resources').FailoverGroupName, '.secondary.database.windows.net')]"
-		//}
 	}
 }
