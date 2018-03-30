@@ -29,8 +29,12 @@
       <Visible>False</Visible>
     </None>
     <Content Include="Deploy-AzureResourceGroup.ps1" />
+    <Content Include="dynamic-functions\Deploy-AzureResourceGroup.ps1" />
     <Content Include="service-fabric-cluster\azuredeploy.json" />
     <Content Include="service-fabric-cluster\azuredeploy.parameters.json" />
+    <Content Include="dynamic-functions\azuredeploy.json" />
+    <Content Include="dynamic-functions\azuredeploy.parameters.json" />
+    <None Include="dynamic-functions\README.md" />
     <None Include="failover-database\azuredeploy.json" />
     <None Include="failover-database\azuredeploy.parameters.json" />
     <None Include="failover-database\README.md" />

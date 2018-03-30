@@ -1,0 +1,268 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourceNameSuffix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Suffix of the names of the resources."
+			}
+		},
+		"resourceLocation":
+		{
+			"type": "string",
+			"defaultValue": "westeurope",
+			"metadata":
+			{
+				"description": "Location of the resources."
+			}
+		},
+		"certificatesKeyVaultId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Key Vault resource which stores the sertificates."
+			}
+		},
+		"sslCertificateSecretName":
+		{
+			"type": "string",
+			"minLength": 1,
+			"metadata":
+			{
+				"description": "Name of the secret within the KeyVault which should be used as the SSL certificate."
+			}
+		},
+		"dataStorageSKU":
+		{
+			"type": "string",
+			"defaultValue": "Standard_LRS",
+			"allowedValues":
+			[
+				"Standard_LRS",
+				"Standard_GRS",
+				"Standard_RAGRS"
+			],
+			"metadata":
+			{
+				"description": "SKU of the data Storage Account."
+			}
+		},
+		"appHostName":
+		{
+			"type": "string"
+		},
+		"appInsightsKey":
+		{
+			"type": "string"
+		}
+	},
+	"variables":
+	{
+		"Names":
+		{
+			"DataStorage": "[concat(toLower(replace(parameters('resourceNameSuffix'), '-', '')), 'data')]",
+			"ServerFarm": "[parameters('resourceNameSuffix')]",
+			"Certificate": "[parameters('resourceNameSuffix')]",
+			"App": "[concat(parameters('resourceNameSuffix'), '-swagger')]"
+		},
+		"KeyVault":
+		{
+			"ResourceId": "[parameters('certificatesKeyVaultId')]"
+		},
+		"DataStorage":
+		{
+			"ApiVersion": "2017-10-01",
+			"ResourceName": "[variables('Names').DataStorage]",
+			"ResourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('Names').DataStorage)]",
+			"ResourceLocation": "[parameters('resourceLocation')]",
+			"Sku": "[parameters('dataStorageSKU')]",
+			"Kind": "Storage",
+			"SupportsHttpsTrafficOnly": false
+		},
+		"ServerFarm":
+		{
+			"ResourceId": "[resourceId('Microsoft.Web/serverfarms', variables('Names').ServerFarm)]",
+			"ResourceName": "[variables('Names').ServerFarm]",
+			"ResourceLocation": "[parameters('resourceLocation')]",
+			"SKU": "Y1"
+		},
+		"Certificate":
+		{
+			"ResourceId": "[resourceId('Microsoft.Web/certificates', variables('Names').Certificate)]",
+			"ResourceName": "[variables('Names').Certificate]",
+			"ResourceLocation": "[parameters('resourceLocation')]",
+			"SecretName": "[parameters('sslCertificateSecretName')]"
+		},
+		"App":
+		{
+			"ResourceId": "[resourceId('Microsoft.Web/sites', variables('Names').App)]",
+			"ResourceName": "[variables('Names').App]",
+			"ResourceLocation": "[parameters('resourceLocation')]",
+			"URL": "[concat('https://', parameters('appHostName'))]",
+			"FileShareName" : "[replace(variables('Names').App, '-', '')]"
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "Storage Account for Functions",
+			"name": "[variables('DataStorage').ResourceName]",
+			"type": "Microsoft.Storage/storageAccounts",
+			"apiVersion": "[variables('DataStorage').ApiVersion]",
+			"location": "[variables('DataStorage').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Data Storage"
+			},
+			"sku":
+			{
+				"name": "[variables('DataStorage').Sku]"
+			},
+			"kind": "[variables('DataStorage').Kind]",
+			"properties":
+			{
+				"supportsHttpsTrafficOnly": "[variables('DataStorage').SupportsHttpsTrafficOnly]"
+			}
+		},
+		{
+			"comments": "App service farm to hosts the applications.",
+			"name": "[variables('ServerFarm').ResourceName]",
+			"type": "Microsoft.Web/serverfarms",
+			"apiVersion": "2016-09-01",
+			"location": "[variables('ServerFarm').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Web Farm"
+			},
+			"sku":
+			{
+				"name": "[variables('ServerFarm').SKU]"
+			},
+			"properties":
+			{
+				"name": "[variables('ServerFarm').ResourceName]"
+			}
+		},
+		{
+			"comments": "App Service SSL certificate.",
+			"name": "[variables('Certificate').ResourceName]",
+			"type": "Microsoft.Web/certificates",
+			"apiVersion": "2016-03-01",
+			"location": "[variables('Certificate').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Web SSL Certificate"
+			},
+			"dependsOn":
+			[
+				"[variables('ServerFarm').ResourceId]"
+			],
+			"properties":
+			{
+				"serverFarmId": "[variables('ServerFarm').ResourceId]",
+				"keyVaultId": "[variables('KeyVault').ResourceId]",
+				"keyVaultSecretName": "[variables('Certificate').SecretName]"
+			}
+		},
+		{
+			"comments": "Web application.",
+			"name": "[variables('App').ResourceName]",
+			"type": "Microsoft.Web/sites",
+			"apiVersion": "2016-08-01",
+			"location": "[variables('App').ResourceLocation]",
+			"kind": "functionapp",
+			"tags":
+			{
+				"displayName": "Web App"
+			},
+			"dependsOn":
+			[
+				"[variables('ServerFarm').ResourceId]"
+			],
+			"properties":
+			{
+				"name": "[variables('App').ResourceName]",
+				"serverFarmId": "[variables('ServerFarm').ResourceId]",
+				"httpsOnly": true
+			},
+			"resources":
+			[
+				{
+					"comments": "Configuration settings of the platform.",
+					"name": "web",
+					"type": "config",
+					"apiVersion": "2016-08-01",
+					"location": "[variables('App').ResourceLocation]",
+					"dependsOn":
+					[
+						"[variables('App').ResourceId]"
+					],
+					"tags":
+					{
+						"displayName": "Platform Config"
+					},
+					"properties":
+					{
+						"clientAffinityEnabled": false,
+						"phpVersion": "Off",
+						"use32BitWorkerProcess": true,
+						"webSocketsEnabled": false
+					}
+				},
+				{
+					"comments": "Configuration settings of the application.",
+					"name": "appsettings",
+					"type": "config",
+					"apiVersion": "2016-08-01",
+					"location": "[variables('App').ResourceLocation]",
+					"tags":
+					{
+						"displayName": "App Config"
+					},
+					"dependsOn":
+					[
+						"[variables('App').ResourceId]",
+						"[variables('DataStorage').ResourceId]"
+					],
+					"properties":
+					{
+						"AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=http;AccountName=', variables('DataStorage').ResourceName, ';AccountKey=', listKeys(variables('DataStorage').ResourceId, variables('DataStorage').ApiVersion).keys[0].value)]",
+						"FUNCTIONS_EXTENSION_VERSION": "~1",
+						"WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=http;AccountName=', variables('DataStorage').ResourceName, ';AccountKey=', listKeys(variables('DataStorage').ResourceId, variables('DataStorage').ApiVersion).keys[0].value)]",
+						"WEBSITE_CONTENTSHARE": "[variables('App').FileShareName]",
+						"APPINSIGHTS_INSTRUMENTATIONKEY" : "[parameters('appInsightsKey')]"
+					}
+				},
+				{
+					"comments": "Bind host name to app.",
+					"name": "[parameters('appHostName')]",
+					"type": "hostNameBindings",
+					"apiVersion": "2016-08-01",
+					"location": "[variables('App').ResourceLocation]",
+					"tags":
+					{
+						"displayName": "Host Name Binding"
+					},
+					"dependsOn":
+					[
+						"[variables('App').ResourceId]",
+						"[variables('Certificate').ResourceId]"
+					],
+					"properties":
+					{
+						"sslState": "SniEnabled",
+						"thumbprint": "[reference(variables('Certificate').ResourceId).thumbprint]"
+					}
+				}
+			]
+		}
+	],
+	"outputs":
+	{
+	}
+}

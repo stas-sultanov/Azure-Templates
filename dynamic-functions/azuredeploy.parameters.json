@@ -1,0 +1,23 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourceNameSuffix":
+		{
+			"value": "pros01-beta"
+		},
+		"certificatesKeyVaultId":
+		{
+			"value": "/subscriptions/66ef014e-adb6-4868-9182-52fe0deeeb00/resourceGroups/services/providers/Microsoft.KeyVault/vaults/pros01"
+		},
+		"sslCertificateSecretName":
+		{
+			"value": "dev"
+		},
+		"appHostName":
+		{
+			"value": "beta-swagger.pros01.com"
+		}
+	}
+}
