@@ -301,8 +301,8 @@
 			},
 			"dependsOn":
 			[
-				"[variables('Network').ResourceId]",
-				"[variables('CloudGatewayPublicIP').ResourceId]"
+				"[variables('CloudGateway').ResourceId]",
+				"[variables('LocalGateway').ResourceId]"
 			]
 		},
 		{
