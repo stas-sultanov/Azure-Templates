@@ -1,0 +1,430 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourcesNameSuffix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Suffix to the names of the resources."
+			}
+		},
+		"resourcesLocation":
+		{
+			"type": "string",
+			"defaultValue": "[resourceGroup().Location]",
+			"metadata":
+			{
+				"description": "Location of the resources."
+			}
+		},
+		"localGatewayIpAddress":
+		{
+			"type": "string"
+		},
+		"localGatewayAddressPrefix":
+		{
+			"type": "string"
+		},
+		"connectionSharedKey":
+		{
+			"type": "securestring"
+		},
+		"compute_AdminUserName":
+		{
+			"type": "string",
+			"minLength": 1
+		},
+		"compute_AdminPassword":
+		{
+			"type": "securestring"
+		},
+		"compute_WindowsOSVersion":
+		{
+			"type": "string",
+			"defaultValue": "2016-Datacenter",
+			"allowedValues":
+			[
+				"2012-R2-Datacenter",
+				"2016-Datacenter",
+				"2016-Nano-Server"
+			]
+		}
+	},
+	"variables":
+	{
+		"Names":
+		{
+			"LocalGateway": "[concat(parameters('resourcesNameSuffix'), '-local')]",
+			"Network": "[concat(parameters('resourcesNameSuffix'))]",
+			"CloudGateway": "[concat(parameters('resourcesNameSuffix'), '-cloud')]",
+			"CloudGatewayConnection": "[concat(parameters('resourcesNameSuffix'), '-cloud2local')]",
+			"Compute": "[concat(parameters('resourcesNameSuffix'), '-compute')]"
+		},
+		"LocalGateway":
+		{
+			"ResourceName": "[variables('Names').LocalGateway]",
+			"ResourceId": "[resourceId('Microsoft.Network/localNetworkGateways', variables('Names').LocalGateway)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AddressPrefix": "[parameters('LocalGatewayAddressPrefix')]",
+			"GatewayIpAddress": "[parameters('LocalGatewayIpAddress')]"
+		},
+		"Network":
+		{
+			"ResourceName": "[variables('Names').Network]",
+			"ResourceId": "[resourceId('Microsoft.Network/virtualNetworks', variables('Names').Network)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AddressPrefix": "10.0.0.0/24"
+		},
+		"CloudGatewaySubnet":
+		{
+			"ResourceName": "GatewaySubnet",
+			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', 'GatewaySubnet')]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AddressPrefix": "10.0.0.0/26"
+		},
+		"CloudGatewayPublicIP":
+		{
+			"ResourceName": "[variables('Names').CloudGateway]",
+			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').CloudGateway)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AllocationMethod": "Dynamic",
+			"DomainName": "[variables('Names').CloudGateway]"
+		},
+		"CloudGateway":
+		{
+			"ResourceName": "[variables('Names').CloudGateway]",
+			"ResourceId": "[resourceId('Microsoft.Network/virtualNetworkGateways', variables('Names').CloudGateway)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"VpnType": "RouteBased",
+			"Tier": "VpnGw1",
+			"AddressPrefix": "10.0.1.0/27"
+		},
+		"CloudGatewayConnection":
+		{
+			"ResourceName": "[variables('Names').CloudGatewayConnection]",
+			"ResourceId": "[resourceId('Microsoft.Network/connections', variables('Names').CloudGatewayConnection)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"ConnectionType": "IPsec",
+			"SharedKey": "[parameters('connectionSharedKey')]"
+		},
+		"ComputeSubnet":
+		{
+			"ResourceName": "ComputeSubnet",
+			"ResourceId": "[concat(variables('Network').ResourceId, '/subnets/', 'ComputeSubnet')]",
+			"AddressPrefix": "10.0.0.128/26"
+		},
+		"ComputePublicIP":
+		{
+			"ResourceName": "[variables('Names').Compute]",
+			"ResourceId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('Names').Compute)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"AllocationMethod": "Static",
+			"DomainName": "[variables('Names').Compute]"
+		},
+		"ComputeNIC":
+		{
+			"ResourceName": "[variables('Names').Compute]",
+			"ResourceId": "[resourceId('Microsoft.Network/networkInterfaces', variables('Names').Compute)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]"
+		},
+		"ComputeVM":
+		{
+			"ResourceName": "[variables('Names').Compute]",
+			"ResourceId": "[resourceId('Microsoft.Compute/virtualMachineScaleSets', variables('Names').Compute)]",
+			"ResourceLocation": "[parameters('resourcesLocation')]",
+			"ComputerName": "Compute",
+			"Size": "Basic_A2",
+			"OSVersion": "[parameters('compute_WindowsOSVersion')]",
+			"ManagedDiskStorageAccountType": "Standard_LRS"
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "Local Network Gateway.",
+			"name": "[variables('LocalGateway').ResourceName]",
+			"type": "Microsoft.Network/localNetworkGateways",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('LocalGateway').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Local Gateway"
+			},
+			"properties":
+			{
+				"localNetworkAddressSpace":
+				{
+					"addressPrefixes":
+					[
+						"[variables('LocalGateway').AddressPrefix]"
+					]
+				},
+				"gatewayIpAddress": "[variables('LocalGateway').GatewayIpAddress]"
+			}
+		},
+		{
+			"comments": "Virtual Network.",
+			"name": "[variables('Network').ResourceName]",
+			"type": "Microsoft.Network/virtualNetworks",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('Network').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Virtual Network"
+			},
+			"properties":
+			{
+				"addressSpace":
+				{
+					"addressPrefixes":
+					[
+						"[variables('Network').AddressPrefix]"
+					]
+				},
+				"subnets":
+				[
+					{
+						"properties":
+						{
+							"addressPrefix": "[variables('CloudGatewaySubnet').AddressPrefix]"
+						},
+						"name": "[variables('CloudGatewaySubnet').ResourceName]"
+					},
+					{
+						"properties":
+						{
+							"addressPrefix": "[variables('ComputeSubnet').AddressPrefix]"
+						},
+						"name": "[variables('ComputeSubnet').ResourceName]"
+					}
+				]
+			}
+		},
+		{
+			"comments": "Public IP address of the CloudGateway.",
+			"name": "[variables('CloudGatewayPublicIP').ResourceName]",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('CloudGatewayPublicIP').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Cloud Gateway / IP Address"
+			},
+			"properties":
+			{
+				"publicIPAllocationMethod": "[variables('CloudGatewayPublicIP').AllocationMethod]",
+				"dnsSettings":
+				{
+					"domainNameLabel": "[variables('CloudGatewayPublicIP').DomainName]"
+				}
+			}
+		},
+		{
+			"comments": "Virtual Network Gateway.",
+			"name": "[variables('CloudGateway').ResourceName]",
+			"type": "Microsoft.Network/virtualNetworkGateways",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('CloudGateway').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Cloud Gateway"
+			},
+			"properties":
+			{
+				"ipConfigurations":
+				[
+					{
+						"properties":
+						{
+							"privateIPAllocationMethod": "Dynamic",
+							"subnet":
+							{
+								"id": "[variables('CloudGatewaySubnet').ResourceId]"
+							},
+							"publicIPAddress":
+							{
+								"id": "[variables('CloudGatewayPublicIP').ResourceId]"
+							}
+						},
+						"name": "default"
+					}
+				],
+				"gatewayType": "Vpn",
+				"vpnType": "[variables('CloudGateway').VpnType]",
+				"sku":
+				{
+					"tier": "[variables('CloudGateway').Tier]",
+					"name": "[variables('CloudGateway').Tier]"
+				},
+				"vpnClientConfiguration":
+				{
+					"vpnClientAddressPool":
+					{
+						"addressPrefixes":
+						[
+							"[variables('CloudGateway').AddressPrefix]"
+						]
+					}
+				}
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]",
+				"[variables('CloudGatewayPublicIP').ResourceId]"
+			]
+		},
+		{
+			"comments": "Cloud To Local Network Connection.",
+			"name": "[variables('CloudGatewayConnection').ResourceName]",
+			"type": "Microsoft.Network/connections",
+			"apiVersion": "2017-10-01",
+			"location": "[variables('CloudGatewayConnection').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Cloud Gateway / Local Connection"
+			},
+			"properties":
+			{
+				"virtualNetworkGateway1":
+				{
+					"id": "[variables('CloudGateway').ResourceId]"
+				},
+				"localNetworkGateway2":
+				{
+					"id": "[variables('LocalGateway').ResourceId]"
+				},
+				"connectionType": "[variables('CloudGatewayConnection').ConnectionType]",
+				"sharedKey": "[variables('CloudGatewayConnection').SharedKey]"
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]",
+				"[variables('CloudGatewayPublicIP').ResourceId]"
+			]
+		},
+		{
+			"comments": "Static Public IP address.",
+			"name": "[variables('ComputePublicIP').ResourceName]",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"apiVersion": "2017-06-01",
+			"location": "[variables('ComputePublicIP').ResourceLocation]",
+			"properties":
+			{
+				"publicIPAllocationMethod": "[variables('ComputePublicIP').AllocationMethod]",
+				"dnsSettings":
+				{
+					"domainNameLabel": "[variables('ComputePublicIP').DomainName]"
+				}
+			},
+			"tags":
+			{
+				"displayName": "Compute / IP Address"
+			}
+		},
+		{
+			"comments": "Network Intefrace.",
+			"name": "[variables('ComputeNIC').ResourceName]",
+			"type": "Microsoft.Network/networkInterfaces",
+			"apiVersion": "2017-06-01",
+			"location": "[variables('ComputeNIC').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Compute / Network Interface"
+			},
+			"properties":
+			{
+				"ipConfigurations":
+				[
+					{
+						"name": "default",
+						"properties":
+						{
+							"privateIPAllocationMethod": "Dynamic",
+							"subnet":
+							{
+								"id": "[variables('ComputeSubnet').ResourceId]"
+							},
+							"publicIPAddress":
+							{
+								"id": "[variables('ComputePublicIP').ResourceId]"
+							}
+						}
+					}
+				]
+			},
+			"dependsOn":
+			[
+				"[variables('Network').ResourceId]",
+				"[variables('ComputePublicIP').ResourceId]"
+			]
+		},
+		{
+			"comments": "Virtual machine for Compute.",
+			"name": "[variables('ComputeVM').ResourceName]",
+			"type": "Microsoft.Compute/virtualMachines",
+			"apiVersion": "2017-12-01",
+			"location": "[variables('ComputeVM').ResourceLocation]",
+			"tags":
+			{
+				"displayName": "Compute"
+			},
+			"properties":
+			{
+				"hardwareProfile":
+				{
+					"vmSize": "[variables('ComputeVM').Size]"
+				},
+				"storageProfile":
+				{
+					"imageReference":
+					{
+						"publisher": "MicrosoftWindowsServer",
+						"offer": "WindowsServer",
+						"sku": "[variables('ComputeVM').OSVersion]",
+						"version": "latest"
+					},
+					"osDisk":
+					{
+						"name": "[variables('ComputeVM').ResourceName]",
+						"caching": "ReadWrite",
+						"createOption": "FromImage",
+						"managedDisk":
+						{
+							"storageAccountType": "[variables('ComputeVM').ManagedDiskStorageAccountType]"
+						}
+					}
+				},
+				"osProfile":
+				{
+					"computerName": "[variables('ComputeVM').ComputerName]",
+					"adminUsername": "[parameters('compute_AdminUsername')]",
+					"adminPassword": "[parameters('compute_AdminPassword')]"
+				},
+				"networkProfile":
+				{
+					"networkInterfaces":
+					[
+						{
+							"id": "[variables('ComputeNIC').ResourceId]"
+						}
+					]
+				}
+			},
+			"dependsOn":
+			[
+				"[variables('ComputeNIC').ResourceId]"
+			]
+		}
+	],
+	"outputs":
+	{
+		"Network.ResourceId":
+		{
+			"type": "string",
+			"value": "[variables('Network').ResourceId]"
+		}
+	}
+}
