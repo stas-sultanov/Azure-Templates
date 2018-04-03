@@ -1,0 +1,31 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters":
+	{
+		"resourcesNameSuffix":
+		{
+			"value": "SUFFIX"
+		},
+		"compute_AdminUserName":
+		{
+			"value": "ADMIN_USER_NAME"
+		},
+		"compute_AdminPassword":
+		{
+			"value": "ADMIN_PASSWORD"
+		},
+		"LocalGatewayIpAddress":
+		{
+			"value": "LOCAL_IP"
+		},
+		"LocalGatewayAddressPrefix":
+		{
+			"value": "LOCAL_SPACE"
+		},
+		"connectionSharedKey":
+		{
+			"value": "SHARED_KEY"
+		}
+	}
+}
