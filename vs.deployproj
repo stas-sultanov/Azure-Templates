@@ -41,10 +41,6 @@
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="service-fabric-cluster\README.md" />
-    <Content Include="site-to-site\azuredeploy.json" />
-    <Content Include="site-to-site\azuredeploy.parameters.json" />
-    <Content Include="site-to-site\Deploy-AzureResourceGroup.ps1" />
-    <None Include="site-to-site\README.md" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />
 </Project>
