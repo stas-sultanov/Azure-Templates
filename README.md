@@ -1,6 +1,6 @@
 # Azure Resource Manager Templates
 
-This repo contains Azure Resource Manager templates cerated by @Stas Sultalanov.
+This repo contains Azure Resource Manager templates cerated by @Stas Sultanov.
 
 ## Deploying Samples
 
