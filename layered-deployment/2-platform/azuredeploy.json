@@ -1,0 +1,547 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"metadata":
+	{
+		"author": "Stas Sultanov"
+	},
+	"parameters":
+	{
+		"monitorId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Monitor resource."
+			}
+		},
+		"subnetId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Subnet resource."
+			}
+		},
+		"resourceNamePrefix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Prefix to use to generate names of the resources."
+			}
+		},
+		"resourceNamePostfix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Postfix to use to generate names of the resources."
+			}
+		},
+		"resourceLocation":
+		{
+			"type": "string",
+			"defaultValue": "[resourceGroup().location]",
+			"metadata":
+			{
+				"description": "Location to deploy the resources."
+			}
+		},
+		"sqlDirectoryAdminId":
+		{
+			"type": "string",
+			"minLength": 36,
+			"maxLength": 36,
+			"metadata":
+			{
+				"description": "Identifier of the SQL Server administrator within the Azure Active Directory."
+			}
+		},
+		"sqlDirectoryAdminLogin":
+		{
+			"type": "string",
+			"minLength": 1,
+			"metadata":
+			{
+				"description": "Login of the SQL Server administrator within the Azure Active Directory."
+			}
+		},
+		"sqlAdminLogin":
+		{
+			"type": "string",
+			"minLength": 1,
+			"metadata":
+			{
+				"description": "Login of the Azure SQL Server administrator."
+			}
+		},
+		"sqlAdminPassword":
+		{
+			"type": "securestring",
+			"minLength": 12,
+			"metadata":
+			{
+				"description": "Password of the Azure SQL Server administrator."
+			}
+		},
+		"serverFarmSku":
+		{
+			"type": "string",
+			"allowedValues":
+			[
+				"Y1",
+				"EP1",
+				"EP2",
+				"EP3"
+			],
+			"defaultValue": "EP1",
+			"metadata":
+			{
+				"description": "Realm Tag to differentiate resources."
+			}
+		}
+	},
+	"variables":
+	{
+		"ActiveDirectory":
+		{
+			"TenantId": "[subscription().tenantId]"
+		},
+		"Monitor":
+		{
+			"Id": "[parameters('monitorId')]"
+		},
+		"Subnet":
+		{
+			"Id": "[parameters('subnetId')]"
+		},
+		"Names":
+		{
+			"KeyVault": "[concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix'))]",
+			"SystemStorage": "[toLower(replace(concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix')), '-', ''))]",
+			"SqlServer": "[concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix'))]",
+			"ServerFarm": "[concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix'))]"
+		},
+		"KeyVault":
+		{
+			"Id": "[resourceId('Microsoft.KeyVault/vaults', variables('Names').KeyVault)]",
+			"Name": "[variables('Names').KeyVault]",
+			"Sku": "Standard"
+		},
+		"SystemStorage":
+		{
+			"Id": "[resourceId('Microsoft.Storage/storageAccounts', variables('Names').SystemStorage)]",
+			"Name": "[variables('Names').SystemStorage]"
+		},
+		"SqlServer":
+		{
+			"Id": "[resourceId('Microsoft.Sql/servers', variables('Names').SqlServer)]",
+			"Name": "[variables('Names').SqlServer]",
+			"AuditRetentionDays": 365,
+			"Admin":
+			{
+				"Login": "[parameters('sqlAdminLogin')]",
+				"Password": "[parameters('sqlAdminPassword')]"
+			},
+			"ActiveDirectory":
+			{
+				"AdminId": "[parameters('sqlDirectoryAdminId')]",
+				"AdminLogin": "[parameters('sqlDirectoryAdminLogin')]"
+			}
+		},
+		"ServerFarm":
+		{
+			"Id": "[resourceId('Microsoft.Web/serverfarms', variables('Names').ServerFarm)]",
+			"Name": "[variables('Names').ServerFarm]",
+			"SKU": "[parameters('serverFarmSku')]"
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "Key Vault to store realm secrets.",
+			"apiVersion": "2018-02-14",
+			"type": "Microsoft.KeyVault/vaults",
+			"name": "[variables('KeyVault').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "platform",
+				"displayName": "Key Vault"
+			},
+			"properties":
+			{
+				"tenantId": "[variables('ActiveDirectory').TenantId]",
+				"sku":
+				{
+					"family": "A",
+					"name": "[variables('KeyVault').Sku]"
+				},
+				"accessPolicies":
+				[
+				]
+				//,
+				//"networkAcls":
+				//{
+				//	"bypass": "AzureServices",
+				//	"defaultAction": "Deny",
+				//	"virtualNetworkRules":
+				//	[
+				//		{
+				//			"id": "[variables('Subnet').Id]"
+				//		}
+				//	]
+				//}
+			},
+			"resources":
+			[
+				{
+					"apiVersion": "2017-05-01-preview",
+					"type": "providers/diagnosticSettings",
+					"name": "Microsoft.Insights/Monitor",
+					"properties":
+					{
+						"name": "Monitor",
+						"workspaceId": "[variables('Monitor').Id]",
+						"logs":
+						[
+							{
+								"category": "AuditEvent",
+								"enabled": true,
+								"retentionPolicy":
+								{
+									"days": 30,
+									"enabled": true
+								}
+							}
+						],
+						"metrics":
+						[
+							{
+								"timeGrain": "PT1H",
+								"enabled": true,
+								"retentionPolicy":
+								{
+									"enabled": true,
+									"days": 30
+								}
+							}
+						]
+					},
+					"dependsOn":
+					[
+						"[variables('KeyVault').Id]"
+					]
+				}
+			]
+		},
+		{
+			"comments": "Storage Account.",
+			"apiVersion": "2018-11-01",
+			"type": "Microsoft.Storage/storageAccounts",
+			"name": "[variables('SystemStorage').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "platform",
+				"displayName": "Storage"
+			},
+			"sku":
+			{
+				"name": "Standard_LRS"
+			},
+			"kind": "StorageV2",
+			"properties":
+			{
+				"supportsHttpsTrafficOnly": false
+				//	,
+				//"networkAcls":
+				//{
+				//	"bypass": "AzureServices",
+				//	"defaultAction": "Deny",
+				//	"virtualNetworkRules":
+				//	[
+				//		{
+				//			"id": "[variables('Subnet').Id]"
+				//		}
+				//	]
+				//}
+			}
+		},
+		{
+			"comments": "SQL Servers which will host the databases required by the application.",
+			"apiVersion": "2015-05-01-preview",
+			"type": "Microsoft.Sql/servers",
+			"name": "[variables('SqlServer').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "platform",
+				"displayName": "Sql Server"
+			},
+			"properties":
+			{
+				"administratorLogin": "[variables('SqlServer').Admin.Login]",
+				"administratorLoginPassword": "[variables('SqlServer').Admin.Password]"
+			},
+			"resources":
+			[
+				//{
+				//	"apiVersion": "2015-05-01-preview",
+				//	"type": "virtualNetworkRules",
+				//	"name": "VirtialNetwork",
+				//	"properties":
+				//	{
+				//		"virtualNetworkSubnetId": "[variables('Subnet').Id]",
+				//		"ignoreMissingVnetServiceEndpoint": false
+				//	},
+				//	"dependsOn":
+				//	[
+				//		"[variables('SqlServer').Id]"
+				//	]
+				//},
+				{
+					"apiVersion": "2014-04-01",
+					"type": "firewallRules",
+					"name": "AllowInternalIps",
+					"properties":
+					{
+						"startIpAddress": "0.0.0.0",
+						"endIpAddress": "0.0.0.0"
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]"
+						//	,
+						//"VirtialNetwork"
+					]
+				},
+				{
+					"apiVersion": "2014-04-01",
+					"type": "administrators",
+					"name": "ActiveDirectory",
+					"properties":
+					{
+						"administratorType": "ActiveDirectory",
+						"tenantId": "[variables('ActiveDirectory').TenantId]",
+						"sid": "[variables('SqlServer').ActiveDirectory.AdminId]",
+						"login": "[variables('SqlServer').ActiveDirectory.AdminLogin]"
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]"
+					]
+				},
+				{
+					"apiVersion": "2014-04-01",
+					"type": "databases",
+					"name": "master",
+					"location": "[parameters('resourceLocation')]",
+					"properties":
+					{
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]"
+					]
+				},
+				{
+					"apiVersion": "2017-05-01-preview",
+					"type": "databases/providers/diagnosticSettings",
+					"name": "master/Microsoft.Insights/Monitor",
+					"properties":
+					{
+						"name": "Monitor",
+						"workspaceId": "[variables('Monitor').Id]",
+						"logs":
+						[
+							{
+								"category": "SQLSecurityAuditEvents",
+								"enabled": true,
+								"retentionPolicy":
+								{
+									"days": 31,
+									"enabled": true
+								}
+							}
+						]
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]",
+						"[resourceId('Microsoft.Sql/servers/databases', variables('Names').SqlServer, 'master')]"
+					]
+				},
+				{
+					"apiVersion": "2017-03-01-preview",
+					"type": "auditingSettings",
+					"name": "AuditingSettings",
+					"properties":
+					{
+						"state": "Enabled",
+						"isAzureMonitorTargetEnabled": true
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]",
+						"[resourceId('Microsoft.Sql/servers/databases', variables('Names').SqlServer, 'master')]",
+						"[resourceId('Microsoft.Sql/servers/databases/providers/diagnosticSettings', variables('SqlServer').Name, 'master', 'Microsoft.Insights', 'Monitor')]"
+					]
+				},
+				{
+					"apiVersion": "2014-04-01",
+					"type": "advisors",
+					"name": "CreateIndex",
+					"properties":
+					{
+						"autoExecuteValue": "Enabled"
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]",
+						"AuditingSettings"
+					]
+				},
+				{
+					"apiVersion": "2014-04-01",
+					"type": "advisors",
+					"name": "DropIndex",
+					"properties":
+					{
+						"autoExecuteValue": "Enabled"
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]",
+						"CreateIndex"
+					]
+				},
+				{
+					"apiVersion": "2014-04-01",
+					"type": "advisors",
+					"name": "ForceLastGoodPlan",
+					"properties":
+					{
+						"autoExecuteValue": "Enabled"
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]",
+						"DropIndex"
+					]
+				},
+				{
+					"apiVersion": "2017-03-01-preview",
+					"type": "securityAlertPolicies",
+					"name": "SecurityAlertPolicy",
+					"properties":
+					{
+						"state": "Enabled",
+						"disabledAlerts":
+						[
+						],
+						"emailAddresses":
+						[
+						],
+						"emailAccountAdmins": true,
+						"retentionDays": "[variables('SqlServer').AuditRetentionDays]"
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]"
+					]
+				},
+				{
+					"apiVersion": "2018-06-01-preview",
+					"type": "vulnerabilityAssessments",
+					"name": "VulnerabilityAssessment",
+					"properties":
+					{
+						"storageContainerPath": "[concat(reference(variables('SystemStorage').Id, '2018-07-01').primaryEndpoints.blob, 'vulnerability-assessment/')]",
+						"storageAccountAccessKey": "[listKeys(variables('SystemStorage').Id, '2018-07-01').keys[0].value]",
+						"recurringScans":
+						{
+							"isEnabled": true,
+							"emailSubscriptionAdmins": true,
+							"emails":
+							[
+							]
+						}
+					},
+					"dependsOn":
+					[
+						"[variables('SqlServer').Id]",
+						"[variables('SystemStorage').Id]"
+					]
+				}
+			]
+		},
+		{
+			"comments": "App service farm to hosts the applications.",
+			"apiVersion": "2018-02-01",
+			"type": "Microsoft.Web/serverfarms",
+			"name": "[variables('ServerFarm').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "platform",
+				"displayName": "Server Farm"
+			},
+			"sku":
+			{
+				"name": "[variables('ServerFarm').SKU]"
+				//	,
+				//"skuCapacity":
+				//{
+				//	"minimum": 1,
+				//	"maximum": 10,
+				//	"default": 1
+				//}
+			},
+			"properties":
+			{
+				"name": "[variables('ServerFarm').Name]"
+			}
+		}
+	],
+	"outputs":
+	{
+		"keyVaultId":
+		{
+			"type": "string",
+			"value": "[variables('KeyVault').Id]",
+			"metadata":
+			{
+				"description": "Identifier of the system Storage Account resource."
+			}
+		},
+		"systemStorageId":
+		{
+			"type": "string",
+			"value": "[variables('SystemStorage').Id]",
+			"metadata":
+			{
+				"description": "Identifier of the system Storage Account resource."
+			}
+		},
+		"sqlServerId":
+		{
+			"type": "string",
+			"value": "[variables('SqlServer').Id]",
+			"metadata":
+			{
+				"description": "Identifier of the Sql Server resource."
+			}
+		},
+		"serverFarmId":
+		{
+			"type": "string",
+			"value": "[variables('ServerFarm').Id]",
+			"metadata":
+			{
+				"description": "Identifier of the Server Farm resource."
+			}
+		}
+	}
+}

@@ -1,0 +1,91 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"metadata":
+	{
+		"author": "Stas Sultanov",
+		"reference": "https://docs.microsoft.com/en-us/azure/templates/microsoft.operationalinsights/allversions"
+	},
+	"parameters":
+	{
+		"resourceNamePrefix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Prefix to use to generate names of the resources."
+			}
+		},
+		"resourceNamePostfix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Postfix to use to generate names of the resources."
+			}
+		},
+		"resourceLocation":
+		{
+			"type": "string",
+			"defaultValue": "[resourceGroup().location]",
+			"metadata":
+			{
+				"description": "Location to deploy the resource."
+			}
+		},
+		"dataRetentionInDays":
+		{
+			"type": "int",
+			"minValue": -1,
+			"maxValue": 730,
+			"defaultValue": 31,
+			"metadata":
+			{
+				"description": "Number of days to keep the data. -1 for unlimited retention."
+			}
+		}
+	},
+	"variables":
+	{
+		"Names":
+		{
+			"Monitor": "[concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix'))]"
+		},
+		"Monitor":
+		{
+			"Id": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('Names').Monitor)]",
+			"Name": "[variables('Names').Monitor]",
+			"RetentionInDays": "[parameters('dataRetentionInDays')]"
+		}
+	},
+	"resources":
+	[
+		{
+			"apiVersion": "2015-11-01-preview",
+			"type": "Microsoft.OperationalInsights/workspaces",
+			"name": "[variables('Monitor').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"displayName": "Monitor",
+				"layer": "Monitor"
+			},
+			"properties":
+			{
+				"sku":
+				{
+					"name": "Standalone"
+				},
+				"retentionInDays": "[variables('Monitor').RetentionInDays]"
+			}
+		}
+	],
+	"outputs":
+	{
+		"Id":
+		{
+			"type": "string",
+			"value": "[variables('Monitor').Id]"
+		}
+	}
+}

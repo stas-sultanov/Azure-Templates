@@ -38,6 +38,15 @@
     <None Include="failover-database\azuredeploy.json" />
     <None Include="failover-database\azuredeploy.parameters.json" />
     <None Include="failover-database\README.md" />
+    <None Include="layered-deployment\0-monitor\azuredeploy.json" />
+    <None Include="layered-deployment\0-monitor\azuredeploy.parameters.json" />
+    <None Include="layered-deployment\1-network\azuredeploy.json" />
+    <None Include="layered-deployment\1-network\azuredeploy.parameters.json" />
+    <None Include="layered-deployment\2-platform\azuredeploy.json" />
+    <None Include="layered-deployment\2-platform\azuredeploy.parameters.json" />
+    <None Include="layered-deployment\3-app-etl\azuredeploy.json" />
+    <None Include="layered-deployment\3-app-etl\azuredeploy.parameters.json" />
+    <None Include="layered-deployment\base.output.json" />
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="service-fabric-cluster\README.md" />

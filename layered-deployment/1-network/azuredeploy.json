@@ -1,0 +1,248 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"metadata":
+	{
+		"author": "Stas Sultanov",
+		"reference": "https://docs.microsoft.com/en-us/azure/templates/microsoft.network/allversions"
+	},
+	"parameters":
+	{
+		"monitorId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Monitor resource."
+			}
+		},
+		"resourceNamePrefix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Prefix to use to generate names of the resources."
+			}
+		},
+		"resourceNamePostfix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Postfix to use to generate names of the resources."
+			}
+		},
+		"resourceLocation":
+		{
+			"type": "string",
+			"defaultValue": "[resourceGroup().location]",
+			"metadata":
+			{
+				"description": "Location to deploy the resources."
+			}
+		},
+		"networkAddressPrefix":
+		{
+			"type": "string",
+			"defaultValue": "10.0.0.0/24",
+			"metadata":
+			{
+				"description": "Identifier of the Network resoruce. Leave empty to create new one."
+			}
+		},
+		"subnetAddressPrefix":
+		{
+			"type": "string",
+			"defaultValue": "10.0.0.0/26",
+			"metadata":
+			{
+				"description": "The address prefix for the subnet."
+			}
+		}
+	},
+	"variables":
+	{
+		"Monitor":
+		{
+			"Id": "[parameters('monitorId')]"
+		},
+		"Names":
+		{
+			"Watcher": "[concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix'))]",
+			"SecurityGroup": "[concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix'))]",
+			"VNet": "[concat(parameters('resourceNamePrefix'), '-', parameters('resourceNamePostfix'))]",
+			"ComputeSubnet": "ComputeSubnet"
+		},
+		"Watcher":
+		{
+			"Id": "[resourceId('Microsoft.Network/networkWatchers', variables('Names').Watcher)]",
+			"Name": "[variables('Names').Watcher]"
+		},
+		"VNet":
+		{
+			"Id": "[resourceId('Microsoft.Network/virtualNetworks', variables('Names').VNet)]",
+			"Name": "[variables('Names').VNet]",
+			"AddressPrefix": "[parameters('networkAddressPrefix')]"
+		},
+		"SecurityGroup":
+		{
+			"Id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('Names').SecurityGroup)]",
+			"Name": "[variables('Names').SecurityGroup]"
+		},
+		"ComputeSubnet":
+		{
+			"Id": "[concat(variables('VNet').Id, '/subnets/', variables('Names').ComputeSubnet)]",
+			"Name": "[concat(variables('Names').VNet, '/', variables('Names').ComputeSubnet)]",
+			"AddressPrefix": "[parameters('subnetAddressPrefix')]"
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "Virtual Network Watcher.",
+			"type": "Microsoft.Network/networkWatchers",
+			"name": "[variables('Watcher').Name]",
+			"apiVersion": "2018-12-01",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "network",
+				"displayName": "Network / Watcher"
+			},
+			"properties":
+			{
+			}
+		},
+		{
+			"comments": "Security Group",
+			"apiVersion": "2018-12-01",
+			"type": "Microsoft.Network/networkSecurityGroups",
+			"name": "[variables('SecurityGroup').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "network",
+				"displayName": "Network / Security Group"
+			},
+			"properties":
+			{
+				"securityRules":
+				[
+				]
+			},
+			"resources":
+			[
+				{
+					"comments": "Security Group Monitor Integration",
+					"apiVersion": "2017-05-01-preview",
+					"type": "providers/diagnosticSettings",
+					"name": "Microsoft.Insights/Monitor",
+					"properties":
+					{
+						"name": "Monitor",
+						"workspaceId": "[variables('Monitor').Id]",
+						"logs":
+						[
+							{
+								"category": "NetworkSecurityGroupEvent",
+								"enabled": true,
+								"retentionPolicy":
+								{
+									"days": 30,
+									"enabled": true
+								}
+							},
+							{
+								"category": "NetworkSecurityGroupRuleCounter",
+								"enabled": true,
+								"retentionPolicy":
+								{
+									"days": 30,
+									"enabled": true
+								}
+							}
+						],
+						"metrics":
+						[
+						]
+					},
+					"dependsOn":
+					[
+						"[variables('SecurityGroup').Id]"
+					]
+				}
+			]
+		},
+		{
+			"comments": "Virtual Network.",
+			"type": "Microsoft.Network/virtualNetworks",
+			"name": "[variables('VNet').Name]",
+			"apiVersion": "2018-11-01",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "network",
+				"displayName": "Network / VNet"
+			},
+			"properties":
+			{
+				"addressSpace":
+				{
+					"addressPrefixes":
+					[
+						"[variables('VNet').AddressPrefix]"
+					]
+				},
+				"subnets":
+				[
+					{
+						"name": "ComputeSubnet",
+						"properties":
+						{
+							"addressPrefix": "[variables('ComputeSubnet').AddressPrefix]",
+							"networkSecurityGroup":
+							{
+								"id": "[variables('SecurityGroup').Id]"
+							},
+							"serviceEndpoints":
+							[
+								{
+									"service": "Microsoft.KeyVault"
+								},
+								{
+									"service": "Microsoft.Sql"
+								},
+								{
+									"service": "Microsoft.Storage"
+								}
+							]
+						}
+					}
+				]
+			},
+			"dependsOn":
+			[
+				"[variables('Watcher').Id]",
+				"[variables('SecurityGroup').Id]"
+			]
+		}
+	],
+	"outputs":
+	{
+		"vnetId":
+		{
+			"type": "string",
+			"value": "[variables('VNet').Id]"
+		},
+		"securityGroupId":
+		{
+			"type": "string",
+			"value": "[variables('SecurityGroup').Id]"
+		},
+		"computeSubnetId":
+		{
+			"type": "string",
+			"value": "[variables('ComputeSubnet').Id]"
+		}
+	}
+}

@@ -1,0 +1,421 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"metadata":
+	{
+		"author": "Stas Sultanov"
+	},
+	"parameters":
+	{
+		"subnetId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Subnet resource."
+			}
+		},
+		"keyVaultId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Key Vault resource."
+			}
+		},
+		"systemStorageId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the system Storage Account resource."
+			}
+		},
+		"sqlServerId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the SQL Server resource."
+			}
+		},
+		"serverFarmId":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Identifier of the Server Farm resource."
+			}
+		},
+		"resourceNamePrefix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Prefix to use to generate names of the resources."
+			}
+		},
+		"resourceNamePostfix":
+		{
+			"type": "string",
+			"metadata":
+			{
+				"description": "Postfix to use to generate names of the resources"
+			}
+		},
+		"appName":
+		{
+			"type": "string",
+			"defaultValue": "",
+			"metadata":
+			{
+				"description": "Application + Env Name."
+			}
+		},
+		"resourceLocation":
+		{
+			"type": "string",
+			"defaultValue": "[resourceGroup().location]",
+			"metadata":
+			{
+				"description": "Location to deploy the resources."
+			}
+		}
+	},
+	"variables":
+	{
+		"Subnet":
+		{
+			"Id": "[parameters('subnetId')]"
+		},
+		"KeyVault":
+		{
+			"Id": "[parameters('keyVaultId')]",
+			"Name": "[split(parameters('keyVaultId'),'/')[8]]",
+			"ResourceGroup": "[split(parameters('keyVaultId'),'/')[4]]"
+		},
+		"SystemStorage":
+		{
+			"Id": "[parameters('systemStorageId')]",
+			"Name": "[split(parameters('systemStorageId'),'/')[8]]"
+		},
+		"SqlServer":
+		{
+			"Id": "[parameters('sqlServerId')]",
+			"Name": "[split(parameters('sqlServerId'),'/')[8]]",
+			"ResourceGroup": "[split(parameters('sqlServerId'),'/')[4]]"
+		},
+		"ServerFarm":
+		{
+			"Id": "[parameters('serverFarmId')]"
+		},
+		"Names":
+		{
+			"AppInsights": "[concat(parameters('resourceNamePrefix'), '-', parameters('appName'), '-', parameters('resourceNamePostfix'))]",
+			"DataStorage": "[replace(concat(parameters('resourceNamePrefix'), '-', '-data-', parameters('appName'), '-', parameters('resourceNamePostfix')), '-', '')]",
+			"Database": "[concat(parameters('appName'))]",
+			"Function": "[concat(parameters('resourceNamePrefix'), '-', parameters('appName'), '-', parameters('resourceNamePostfix'))]"
+		},
+		"AppInsights":
+		{
+			"Id": "[resourceId('Microsoft.Insights/components', variables('Names').AppInsights)]",
+			"Name": "[variables('Names').AppInsights]"
+		},
+		"DataStorage":
+		{
+			"Id": "[resourceId('Microsoft.Storage/storageAccounts', variables('Names').DataStorage)]",
+			"Name": "[variables('Names').DataStorage]",
+			"SKU": "Standard_LRS"
+		},
+		"SqlDatabase":
+		{
+			"Id": "[resourceId('Microsoft.Sql/servers/databases', variables('SqlServer').Name, variables('Names').Database)]",
+			"Name": "[concat(variables('SqlServer').Name, '/', variables('Names').Database)]",
+			"SKU": "S2"
+		},
+		"Function":
+		{
+			"Id": "[resourceId('Microsoft.Web/sites', variables('Names').Function)]",
+			"Name": "[variables('Names').Function]"
+		},
+		"FunctionToStorageRoleAssigment":
+		{
+			"Name": "[concat(variables('DataStorage').Name, '/Microsoft.Authorization/', 'E4DC6AC1-F6FD-4E1B-B7A9-33DB05EEA133')]",
+			"RoleId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]"
+		},
+		"FunctionToKeyVaultAccess":
+		{
+			"DeploymentName": "[concat(deployment().name, '-key-vault-access-for-function')]",
+			"Name": "[concat(variables('KeyVault').Name, '/add')]"
+		}
+	},
+	"resources":
+	[
+		{
+			"comments": "Application Insights to monitor the Application.",
+			"apiVersion": "2015-05-01",
+			"type": "Microsoft.Insights/components",
+			"name": "[variables('AppInsights').Name]",
+			"kind": "web",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "Application",
+				"displayName": "AppInsights"
+			},
+			"properties":
+			{
+				"Application_Type": "web"
+			}
+		},
+		{
+			"comments": "Storage Account for data.",
+			"apiVersion": "2018-11-01",
+			"type": "Microsoft.Storage/storageAccounts",
+			"name": "[variables('DataStorage').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"tags":
+			{
+				"layer": "Application",
+				"displayName": "Storage / Data"
+			},
+			"sku":
+			{
+				"name": "[variables('DataStorage').Sku]"
+			},
+			"kind": "StorageV2",
+			"properties":
+			{
+				"supportsHttpsTrafficOnly": false
+				//,
+				//"networkAcls":
+				//{
+				//	"bypass": "AzureServices",
+				//	"defaultAction": "Deny",
+				//	"virtualNetworkRules":
+				//	[
+				//		{
+				//			"id": "[variables('Subnet').Id]"
+				//		}
+				//	]
+				//}
+			},
+			"resources":
+			[
+				{
+					"name": "default",
+					"type": "blobServices",
+					"apiVersion": "2018-11-01",
+					"properties":
+					{
+						"deleteRetentionPolicy":
+						{
+							"enabled": true,
+							"days": 30
+						}
+					},
+					"dependsOn":
+					[
+						"[variables('DataStorage').Id]"
+					]
+				}
+			]
+		},
+		{
+			"comments": "Database to store the data.",
+			"apiVersion": "2018-05-01",
+			"type": "Microsoft.Resources/deployments",
+			"name": "[concat(deployment().name, '-database')]",
+			"resourceGroup": "[variables('SqlServer').ResourceGroup]",
+			"properties":
+			{
+				"template":
+				{
+					"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+					"contentVersion": "1.0.0.0",
+					"resources":
+					[
+						{
+							"comments": "Databases required by the appliaction.",
+							"apiVersion": "2017-10-01-preview",
+							"type": "Microsoft.Sql/servers/databases",
+							"name": "[variables('SqlDatabase').Name]",
+							"location": "[parameters('resourceLocation')]",
+							"tags":
+							{
+								"layer": "Application",
+								"displayName": "Database / ETL"
+							},
+							"sku":
+							{
+								"name": "[variables('SqlDatabase').SKU]"
+							}
+						}
+					]
+				},
+				"mode": "[deployment().properties.mode]"
+			},
+			"dependsOn":
+			[
+				"[variables('Function').Id]"
+			]
+		},
+		{
+			"comments": "Functions application.",
+			"apiVersion": "2018-11-01",
+			"type": "Microsoft.Web/sites",
+			"name": "[variables('Function').Name]",
+			"location": "[parameters('resourceLocation')]",
+			"kind": "functionapp",
+			"tags":
+			{
+				"layer": "Application",
+				"displayName": "Function"
+			},
+			"properties":
+			{
+				"serverFarmId": "[variables('ServerFarm').Id]",
+				"httpsOnly": false
+			},
+			"identity":
+			{
+				"type": "SystemAssigned"
+			},
+			"resources":
+			[
+				{
+					"comments": "Platform configuration settings.",
+					"apiVersion": "2018-02-01",
+					"type": "config",
+					"name": "web",
+					"tags":
+					{
+						"layer": "Application",
+						"displayName": "Platform Config"
+					},
+					"properties":
+					{
+						"clientAffinityEnabled": false,
+						"phpVersion": "Off",
+						"use32BitWorkerProcess": true,
+						"webSocketsEnabled": false
+					},
+					"dependsOn":
+					[
+						"[variables('Function').Id]"
+					]
+				},
+				{
+					"comments": "Application configuration settings.",
+					"apiVersion": "2018-02-01",
+					"type": "config",
+					"name": "appsettings",
+					"tags":
+					{
+						"layer": "Application",
+						"displayName": "App Config"
+					},
+					"properties":
+					{
+						"APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(variables('AppInsights').Id, '2015-05-01').InstrumentationKey]",
+						"AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=http;AccountName=', variables('SystemStorage').Name, ';AccountKey=', listKeys(variables('SystemStorage').Id, '2018-07-01').keys[0].value)]",
+						"FUNCTIONS_WORKER_RUNTIME": "dotnet",
+						"FUNCTIONS_EXTENSION_VERSION": "~2",
+						"WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=http;AccountName=', variables('SystemStorage').Name, ';AccountKey=', listKeys(variables('SystemStorage').Id, '2018-07-01').keys[0].value)]",
+						"WEBSITE_CONTENTSHARE": "[variables('Function').Name]"
+					},
+					"dependsOn":
+					[
+						"[variables('Function').Id]"
+					]
+				},
+				{
+					"apiVersion": "2018-02-01",
+					"type": "virtualNetworkConnections",
+					"name": "ComputeSubnet",
+					"location": "[parameters('resourceLocation')]",
+					"properties":
+					{
+						"vnetResourceId": "[variables('SubNet').Id]"
+					},
+					"dependsOn":
+					[
+						"[variables('Function').Id]"
+					]
+				}
+			]
+		},
+		{
+			"comments": "Allow Function to access data Storage Account via Managed Identity",
+			"name": "[variables('FunctionToStorageRoleAssigment').Name]",
+			"type": "Microsoft.Storage/storageAccounts/providers/roleAssignments",
+			"apiVersion": "2017-09-01",
+			"properties":
+			{
+				"roleDefinitionId": "[variables('FunctionToStorageRoleAssigment').RoleId]",
+				"principalId": "[reference(variables('Function').Id, '2018-02-01', 'Full').identity.principalId]"
+			},
+			"dependsOn":
+			[
+				"[variables('Function').Id]"
+			]
+		},
+		{
+			"comments": "Allow Function to access Key Vault via Managed Identity",
+			"name": "[variables('FunctionToKeyVaultAccess').DeploymentName]",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2018-05-01",
+			"resourceGroup": "[variables('KeyVault').ResourceGroup]",
+			"properties":
+			{
+				"template":
+				{
+					"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+					"contentVersion": "1.0.0.0",
+					"resources":
+					[
+						{
+							"type": "Microsoft.KeyVault/vaults/accessPolicies",
+							"name": "[concat(variables('KeyVault').Name, '/add')]",
+							"apiVersion": "2018-02-14",
+							"properties":
+							{
+								"accessPolicies":
+								[
+									{
+										"tenantId": "[subscription().tenantId]",
+										"objectId": "[reference(variables('Function').Id, '2018-02-01', 'Full').identity.principalId]",
+										"permissions":
+										{
+											"secrets":
+											[
+												"get"
+											]
+										}
+									}
+								]
+							}
+						}
+					]
+				},
+				"mode": "[deployment().properties.mode]"
+			},
+			"dependsOn":
+			[
+				"[variables('Function').Id]"
+			]
+		}
+	],
+	"outputs":
+	{
+		"functionPrincipalId":
+		{
+			"type": "string",
+			"value": "[reference(variables('Function').Id, '2018-02-01', 'Full').identity.principalId]",
+			"metadata":
+			{
+				"description": "Identifier of the Principal of the Function resource."
+			}
+		}
+	}
+}
